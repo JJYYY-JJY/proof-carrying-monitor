@@ -7,3 +7,4 @@ import PCM.Spec.PolicyTest
 import PCM.Spec.Diff
 import PCM.Cert.Certificate
 import PCM.Cert.Checker
+import PCM.Cert.CheckerTest

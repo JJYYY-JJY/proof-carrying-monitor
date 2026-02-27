@@ -9,6 +9,10 @@ namespace PCM.Spec.PolicyTest
 
 open PCM.Spec
 
+#check @isAllowed_iff_AllowedSpec
+#check @action_in_baseFacts
+#check @baseFacts_no_deny
+
 -- ============================================================
 -- 基础测试：空策略
 -- ============================================================
@@ -114,6 +118,10 @@ def testPolicyNeg : Policy := { rules := [denyWithNeg] }
 
 /-- 空策略允许任何请求 -/
 example : isAllowed testReq testPolicy testGraph [] = true := rfl
+
+/-- 反射引理可直接把可执行判定提升为语义规格 -/
+example : AllowedSpec testReq testPolicy testGraph [] :=
+  (isAllowed_iff_AllowedSpec testReq testPolicy testGraph []).mp rfl
 
 /-- 匹配的 deny 规则拒绝请求 -/
 example : isAllowed testReq testPolicyDeny testGraph [] = false := rfl
