@@ -9,7 +9,7 @@ pcm-common = { path = "../pcm-common" }
 tokio = { workspace = true }
 tonic = { workspace = true }
 prost = { workspace = true }
-rocksdb = { workspace = true }
+sled = { workspace = true }
 blake3 = { workspace = true }
 tracing = { workspace = true }
 anyhow = { workspace = true }
