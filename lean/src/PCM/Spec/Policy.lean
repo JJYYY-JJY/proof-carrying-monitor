@@ -16,24 +16,24 @@ inductive Atom where
   | graphLabel (node : String) (l : Label)
   | precedes (a b : String)
   | deny (req : String) (reason : String)
-  deriving DecidableEq, BEq, Repr
+  deriving DecidableEq, BEq, Repr, Hashable
 
 /-- 规则体文字（正或负） -/
 inductive Literal where
   | pos (a : Atom)
   | neg (a : Atom)
-  deriving DecidableEq, Repr
+  deriving DecidableEq, BEq, Repr, Hashable
 
 /-- Datalog 规则（Horn 子句） -/
 structure Rule where
   head : Atom
   body : List Literal
-  deriving DecidableEq, Repr
+  deriving DecidableEq, BEq, Repr, Hashable
 
 /-- 策略 = 有序规则列表 -/
 structure Policy where
   rules : List Rule
-  deriving DecidableEq, Repr
+  deriving DecidableEq, BEq, Repr, Hashable
 
 /-- 从请求和图推导基础事实集合 -/
 def baseFacts (req : Request) (g : Graph) (roles : RoleAssignment) : List Atom :=
