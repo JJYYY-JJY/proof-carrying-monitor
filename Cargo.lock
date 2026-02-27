@@ -1385,6 +1385,7 @@ dependencies = [
  "pcm-common",
  "pcm-datalog-engine",
  "pcm-policy-dsl",
+ "proptest",
  "serde",
  "serde_json",
 ]
@@ -1393,7 +1394,13 @@ dependencies = [
 name = "pcm-cert-checker-ffi"
 version = "0.1.0"
 dependencies = [
+ "blake3",
+ "pcm-cert",
  "pcm-common",
+ "pcm-datalog-engine",
+ "pcm-policy-dsl",
+ "proptest",
+ "serde_json",
 ]
 
 [[package]]
@@ -1460,7 +1467,9 @@ dependencies = [
  "pcm-datalog-engine",
  "pcm-policy-dsl",
  "prost",
+ "prost-types",
  "tokio",
+ "tokio-stream",
  "tonic",
  "tracing",
  "tracing-subscriber",

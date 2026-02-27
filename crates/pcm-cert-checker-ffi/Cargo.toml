@@ -7,6 +7,17 @@ description = "PCM cert-checker Lean FFI 绑定（Rust 侧）"
 
 [dependencies]
 pcm-common = { path = "../pcm-common" }
+pcm-cert = { path = "../pcm-cert" }
+pcm-policy-dsl = { path = "../pcm-policy-dsl" }
+pcm-datalog-engine = { path = "../pcm-datalog-engine" }
+blake3 = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+pcm-policy-dsl = { path = "../pcm-policy-dsl" }
+pcm-datalog-engine = { path = "../pcm-datalog-engine" }
+pcm-cert = { path = "../pcm-cert" }
 
 [build-dependencies]
 # 将来链接 Lean-extracted C 库
