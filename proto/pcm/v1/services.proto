@@ -1,0 +1,271 @@
+syntax = "proto3";
+package pcm.v1;
+
+import "pcm/v1/types.proto";
+
+// ============================================================
+// MonitorService — 参考监控器
+// ============================================================
+
+service MonitorService {
+  rpc Evaluate(EvaluateRequest) returns (EvaluateResponse);
+  rpc EvaluateBatch(EvaluateBatchRequest) returns (EvaluateBatchResponse);
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+message EvaluateRequest {
+  Request request = 1;
+  bool dry_run = 2;
+}
+
+message EvaluateResponse {
+  Decision decision = 1;
+  uint64 evaluation_duration_us = 2;
+}
+
+message EvaluateBatchRequest {
+  repeated EvaluateRequest requests = 1;
+}
+
+message EvaluateBatchResponse {
+  repeated EvaluateResponse responses = 1;
+}
+
+message HealthRequest {}
+message HealthResponse {
+  bool healthy = 1;
+  string policy_version = 2;
+  uint64 uptime_seconds = 3;
+}
+
+// ============================================================
+// PolicyService — 策略管理
+// ============================================================
+
+service PolicyService {
+  rpc CreatePolicy(CreatePolicyRequest) returns (PolicyVersion);
+  rpc GetPolicy(GetPolicyRequest) returns (PolicyVersion);
+  rpc ListPolicyVersions(ListPolicyVersionsRequest) returns (ListPolicyVersionsResponse);
+  rpc CompilePolicy(CompilePolicyRequest) returns (CompilePolicyResponse);
+  rpc ValidatePolicy(ValidatePolicyRequest) returns (ValidatePolicyResponse);
+  rpc ActivatePolicy(ActivatePolicyRequest) returns (ActivatePolicyResponse);
+}
+
+message CreatePolicyRequest {
+  string source_dsl = 1;
+  string author = 2;
+  string commit_sha = 3;
+}
+
+message GetPolicyRequest {
+  string policy_id = 1;
+  string version = 2; // 空则返回最新
+}
+
+message ListPolicyVersionsRequest {
+  string policy_id = 1;
+  uint32 limit = 2;
+  string page_token = 3;
+}
+
+message ListPolicyVersionsResponse {
+  repeated PolicyVersion versions = 1;
+  string next_page_token = 2;
+}
+
+message CompilePolicyRequest {
+  string source_dsl = 1;
+}
+
+message CompilePolicyResponse {
+  CompiledPolicy compiled = 1;
+  repeated string warnings = 2;
+  bool decidable = 3;
+}
+
+message ValidatePolicyRequest {
+  string source_dsl = 1;
+}
+
+message ValidatePolicyResponse {
+  bool valid = 1;
+  repeated string errors = 2;
+  repeated string warnings = 3;
+}
+
+message ActivatePolicyRequest {
+  string policy_id = 1;
+  string version = 2;
+}
+
+message ActivatePolicyResponse {
+  bool activated = 1;
+  string active_version = 2;
+}
+
+// ============================================================
+// GraphService — 依赖图
+// ============================================================
+
+service GraphService {
+  rpc AppendEvent(AppendEventRequest) returns (AppendEventResponse);
+  rpc GetSnapshot(GetSnapshotRequest) returns (GraphSnapshot);
+  rpc QueryReachable(ReachableRequest) returns (ReachableResponse);
+  rpc ArchiveSnapshot(ArchiveRequest) returns (ArchiveResponse);
+}
+
+message AppendEventRequest {
+  repeated GraphNode new_nodes = 1;
+  repeated GraphEdge new_edges = 2;
+  string session_id = 3;
+}
+
+message AppendEventResponse {
+  bytes updated_snapshot_hash = 1;
+  uint64 node_count = 2;
+  uint64 edge_count = 3;
+}
+
+message GetSnapshotRequest {
+  string session_id = 1;
+  // 如果为空则返回当前活跃快照
+}
+
+message ReachableRequest {
+  string from_node = 1;
+  string to_node = 2;
+  repeated EdgeKind edge_filter = 3;
+}
+
+message ReachableResponse {
+  bool reachable = 1;
+  repeated GraphPath paths = 2;
+}
+
+message ArchiveRequest {
+  string session_id = 1;
+}
+
+message ArchiveResponse {
+  string archive_key = 1; // S3 key
+  bytes snapshot_hash = 2;
+}
+
+// ============================================================
+// CertCheckerService — 证书验证
+// ============================================================
+
+service CertCheckerService {
+  rpc VerifyCertificate(VerifyCertRequest) returns (VerifyCertResponse);
+  rpc VerifyWitness(VerifyWitnessRequest) returns (VerifyWitnessResponse);
+  rpc VerifyDiffCertificate(VerifyDiffCertRequest) returns (VerifyDiffCertResponse);
+}
+
+message VerifyCertRequest {
+  Certificate certificate = 1;
+  Request request = 2;
+  CompiledPolicy policy = 3;
+  GraphSnapshot graph = 4;
+}
+
+message VerifyCertResponse {
+  bool valid = 1;
+  string error_detail = 2;
+}
+
+message VerifyWitnessRequest {
+  Witness witness = 1;
+  Request request = 2;
+  CompiledPolicy policy = 3;
+  GraphSnapshot graph = 4;
+}
+
+message VerifyWitnessResponse {
+  bool valid = 1;
+  string error_detail = 2;
+}
+
+message VerifyDiffCertRequest {
+  DiffCertificate diff_cert = 1;
+  CompiledPolicy policy_old = 2;
+  CompiledPolicy policy_new = 3;
+}
+
+message VerifyDiffCertResponse {
+  bool valid = 1;
+  string error_detail = 2;
+}
+
+// ============================================================
+// DiffAnalyzerService — 策略差分分析
+// ============================================================
+
+service DiffAnalyzerService {
+  rpc AnalyzeDiff(AnalyzeDiffRequest) returns (DiffReport);
+  rpc AnalyzeDiffStream(AnalyzeDiffRequest) returns (stream DiffResult);
+}
+
+message AnalyzeDiffRequest {
+  string policy_old_version = 1;
+  string policy_new_version = 2;
+  AnalysisConfig config = 3;
+}
+
+message AnalysisConfig {
+  uint32 max_examples = 1;
+  bool prove_equivalence = 2;
+  uint32 timeout_seconds = 3;
+}
+
+// ============================================================
+// AuditService — 审计日志
+// ============================================================
+
+service AuditService {
+  rpc LogDecision(LogDecisionRequest) returns (LogDecisionResponse);
+  rpc QueryLogs(QueryLogsRequest) returns (QueryLogsResponse);
+  rpc ExportLogs(ExportLogsRequest) returns (stream AuditRecord);
+  rpc VerifyChain(VerifyChainRequest) returns (VerifyChainResponse);
+}
+
+message LogDecisionRequest {
+  Request request = 1;
+  Decision decision = 2;
+}
+
+message LogDecisionResponse {
+  string record_id = 1;
+  bytes record_hash = 2;
+}
+
+message QueryLogsRequest {
+  string principal = 1;
+  string action_type = 2;
+  string verdict = 3;
+  string start_time = 4; // RFC3339
+  string end_time = 5;
+  uint32 limit = 6;
+  string page_token = 7;
+}
+
+message QueryLogsResponse {
+  repeated AuditRecord records = 1;
+  string next_page_token = 2;
+}
+
+message ExportLogsRequest {
+  string start_time = 1;
+  string end_time = 2;
+  string format = 3; // "json" | "protobuf"
+}
+
+message VerifyChainRequest {
+  string start_record_id = 1;
+  string end_record_id = 2;
+}
+
+message VerifyChainResponse {
+  bool valid = 1;
+  uint64 records_verified = 2;
+  string first_invalid_record_id = 3;
+}

@@ -1,0 +1,190 @@
+syntax = "proto3";
+package pcm.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// ============================================================
+// 基础枚举
+// ============================================================
+
+enum ActionType {
+  ACTION_TYPE_UNSPECIFIED = 0;
+  TOOL_CALL = 1;
+  HTTP_OUT = 2;
+  DB_WRITE = 3;
+  DB_READ_SENSITIVE = 4;
+  FILE_WRITE = 5;
+  FILE_READ = 6;
+  CUSTOM = 15;
+}
+
+enum Verdict {
+  VERDICT_UNSPECIFIED = 0;
+  ALLOW = 1;
+  DENY = 2;
+  ERROR = 3;
+}
+
+enum NodeKind {
+  NODE_KIND_UNSPECIFIED = 0;
+  ENTITY = 1;
+  ACTION = 2;
+  DATA = 3;
+  RESOURCE = 4;
+}
+
+enum EdgeKind {
+  EDGE_KIND_UNSPECIFIED = 0;
+  DATA_FLOW = 1;
+  CONTROL_FLOW = 2;
+  CAUSAL = 3;
+  TEMPORAL = 4;
+}
+
+enum DiffKind {
+  DIFF_KIND_UNSPECIFIED = 0;
+  ESCALATION = 1;   // Deny -> Allow
+  BREAKING = 2;     // Allow -> Deny
+}
+
+// ============================================================
+// 核心数据对象
+// ============================================================
+
+message Request {
+  string request_id = 1;
+  ActionType action_type = 2;
+  string principal = 3;
+  string target = 4;
+  map<string, string> attributes = 5;
+  google.protobuf.Timestamp timestamp = 6;
+  bytes context_hash = 7;
+}
+
+message DerivationStep {
+  uint32 rule_index = 1;
+  repeated uint32 premise_indices = 2;
+  string conclusion = 3; // 序列化的 Atom
+}
+
+message Certificate {
+  repeated DerivationStep steps = 1;
+  bytes policy_hash = 2;
+  bytes graph_hash = 3;
+  bytes request_hash = 4;
+}
+
+message GraphPath {
+  repeated string node_ids = 1;
+}
+
+message Witness {
+  string deny_rule_id = 1;
+  string human_readable_reason = 2;
+  repeated string matched_facts = 3;
+  repeated GraphPath violation_paths = 4;
+  bytes policy_hash = 5;
+  bytes request_hash = 6;
+}
+
+message Decision {
+  string request_id = 1;
+  Verdict verdict = 2;
+  oneof evidence {
+    Certificate certificate = 3;
+    Witness witness = 4;
+  }
+  string policy_version_hash = 5;
+  bytes graph_snapshot_hash = 6;
+  google.protobuf.Timestamp decided_at = 7;
+  bytes signature = 8;
+}
+
+// ============================================================
+// Graph 相关
+// ============================================================
+
+message GraphNode {
+  string node_id = 1;
+  NodeKind kind = 2;
+  string label = 3;
+  map<string, string> attrs = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message GraphEdge {
+  string src = 1;
+  string dst = 2;
+  EdgeKind kind = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message GraphSnapshot {
+  bytes snapshot_hash = 1;
+  repeated GraphNode nodes = 2;
+  repeated GraphEdge edges = 3;
+  google.protobuf.Timestamp as_of = 4;
+}
+
+// ============================================================
+// Policy
+// ============================================================
+
+message CompiledPolicy {
+  bytes content = 1;      // 序列化后的编译产物
+  bytes content_hash = 2; // blake3
+  string version = 3;
+}
+
+message PolicyVersion {
+  string policy_id = 1;
+  string version = 2;
+  bytes content_hash = 3;
+  string source_dsl = 4;
+  CompiledPolicy compiled = 5;
+  google.protobuf.Timestamp created_at = 6;
+  string author = 7;
+  string commit_sha = 8;
+}
+
+// ============================================================
+// Diff
+// ============================================================
+
+message DiffCertificate {
+  Certificate cert_old = 1;
+  Certificate cert_new = 2;
+  Witness witness_old = 3;
+  Witness witness_new = 4;
+  bytes policy_old_hash = 5;
+  bytes policy_new_hash = 6;
+}
+
+message DiffResult {
+  DiffKind kind = 1;
+  Request example_request = 2;
+  Verdict verdict_old = 3;
+  Verdict verdict_new = 4;
+  DiffCertificate diff_certificate = 5;
+}
+
+message DiffReport {
+  repeated DiffResult diffs = 1;
+  bool is_equivalent = 2;
+  Certificate equivalence_cert = 3;
+  string summary = 4;
+}
+
+// ============================================================
+// 审计
+// ============================================================
+
+message AuditRecord {
+  string record_id = 1;
+  Request request = 2;
+  Decision decision = 3;
+  bytes previous_record_hash = 4;
+  bytes record_hash = 5;
+  bytes signature = 6;
+  google.protobuf.Timestamp recorded_at = 7;
+}
