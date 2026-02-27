@@ -17,7 +17,7 @@ async fn main() -> Result<()> {
     tracing::info!("PCM Monitor Gateway starting...");
 
     // TODO: 加载策略、初始化引擎、启动 gRPC 服务
-    let addr = "[::]:50051".parse()?;
+    let addr: std::net::SocketAddr = "[::]:50051".parse()?;
     tracing::info!(%addr, "listening");
 
     // 占位：保持进程运行

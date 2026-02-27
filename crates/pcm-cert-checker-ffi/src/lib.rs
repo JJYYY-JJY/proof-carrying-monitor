@@ -17,7 +17,7 @@ pub fn verify_certificate(
     cert_bytes: &[u8],
     request_bytes: &[u8],
     policy_bytes: &[u8],
-    graph_bytes: &[u8],
+    _graph_bytes: &[u8],
 ) -> VerifyResult {
     // 临时实现：基本格式检查
     if cert_bytes.is_empty() || request_bytes.is_empty() || policy_bytes.is_empty() {
@@ -39,7 +39,7 @@ pub fn verify_witness(
     witness_bytes: &[u8],
     request_bytes: &[u8],
     policy_bytes: &[u8],
-    graph_bytes: &[u8],
+    _graph_bytes: &[u8],
 ) -> VerifyResult {
     if witness_bytes.is_empty() || request_bytes.is_empty() || policy_bytes.is_empty() {
         return VerifyResult {

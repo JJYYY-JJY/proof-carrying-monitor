@@ -86,12 +86,11 @@ impl DatalogEngine {
         // 检查 deny
         let mut deny_reasons = Vec::new();
         for f in &facts {
-            if let Atom::Deny { request, reason } = f {
-                if let (pcm_policy_dsl::ast::Term::Const(rid), pcm_policy_dsl::ast::Term::Const(r)) =
+            if let Atom::Deny { request, reason } = f
+                && let (pcm_policy_dsl::ast::Term::Const(rid), pcm_policy_dsl::ast::Term::Const(r)) =
                     (request, reason)
-                {
-                    deny_reasons.push((rid.clone(), r.clone()));
-                }
+            {
+                deny_reasons.push((rid.clone(), r.clone()));
             }
         }
         let has_deny = !deny_reasons.is_empty();
