@@ -1,0 +1,23 @@
+// 示例策略：最小可行策略 DSL
+
+// === R1: 禁止未授权的外部 HTTP 调用 ===
+deny(Req, "unauthorized_http") :-
+    action(Req, HttpOut, P, _),
+    !has_role(P, "http_allowed").
+
+// === R2: 信息流标签约束 — Confidential 数据不可流向 Public 端点 ===
+deny(Req, "label_violation") :-
+    action(Req, HttpOut, _, Target),
+    graph_edge(DataNode, TargetNode, data_flow),
+    graph_label(DataNode, Confidential),
+    graph_label(TargetNode, Public).
+
+// === R3: 时序前置条件 — 写数据库前必须先经过 validate ===
+deny(Req, "missing_validation") :-
+    action(Req, DbWrite, _, _),
+    !precedes(validate_action, Req).
+
+// === R4: 敏感数据读取需要 audit_read 角色 ===
+deny(Req, "sensitive_read_unauthorized") :-
+    action(Req, DbReadSensitive, P, _),
+    !has_role(P, "audit_read").
