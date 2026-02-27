@@ -12,3 +12,4 @@ pub mod parser;
 
 pub use ast::*;
 pub use compiler::CompiledPolicy;
+pub use parser::parse_policy;

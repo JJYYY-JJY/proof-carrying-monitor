@@ -1,0 +1,5 @@
+// 单条 deny 规则：禁止未授权的工具调用
+
+deny(Req, "unauthorized_tool_call") :-
+    action(Req, ToolCall, P, _),
+    !has_role(P, "tool_user").

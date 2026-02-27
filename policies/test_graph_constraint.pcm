@@ -1,0 +1,14 @@
+// 信息流约束策略 — 使用 graph_edge 和 graph_label
+
+// 机密数据不可流向公开端点
+deny(Req, "data_leak") :-
+    action(Req, HttpOut, _, Target),
+    graph_edge(Src, Target, data_flow),
+    graph_label(Src, Confidential),
+    graph_label(Target, Public).
+
+// 秘密节点间不允许控制流到文件写入
+deny(Req, "control_flow_violation") :-
+    graph_edge(A, B, control_flow),
+    graph_label(A, Secret),
+    action(Req, FileWrite, _, B).

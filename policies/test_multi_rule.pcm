@@ -1,0 +1,21 @@
+// 多规则策略 — 包含 4 条不同谓词的规则
+
+// R1: 禁止未授权外部 HTTP 调用
+deny(Req, "no_http") :-
+    action(Req, HttpOut, P, _),
+    !has_role(P, "http_allowed").
+
+// R2: 敏感数据标签约束
+deny(Req, "label_leak") :-
+    action(Req, HttpOut, _, Target),
+    data_label(Target, Secret).
+
+// R3: 需要审计角色访问敏感数据
+deny(Req, "needs_audit") :-
+    action(Req, DbReadSensitive, P, _),
+    !has_role(P, "auditor").
+
+// R4: 文件写入需要权限
+deny(Req, "file_write_denied") :-
+    action(Req, FileWrite, P, _),
+    !has_role(P, "file_writer").

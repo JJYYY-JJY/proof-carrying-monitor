@@ -1,0 +1,11 @@
+// 时序约束策略 — 使用 precedes
+
+// 写数据库前必须经过认证检查
+deny(Req, "no_auth_before_write") :-
+    action(Req, DbWrite, P, _),
+    !precedes(auth_check, Req).
+
+// 文件写入前必须经过验证步骤
+deny(Req, "no_validation") :-
+    action(Req, FileWrite, P, _),
+    !precedes(validation_step, Req).
