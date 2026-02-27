@@ -1,0 +1,16 @@
+[package]
+name = "pcm-audit-service"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+pcm-common = { path = "../pcm-common" }
+tokio = { workspace = true }
+tonic = { workspace = true }
+prost = { workspace = true }
+sqlx = { workspace = true }
+ed25519-dalek = { workspace = true }
+blake3 = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }

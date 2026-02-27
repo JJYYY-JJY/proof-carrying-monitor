@@ -1,0 +1,15 @@
+[package]
+name = "pcm-cert"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "PCM 证书生成与序列化"
+
+[dependencies]
+pcm-common = { path = "../pcm-common" }
+pcm-policy-dsl = { path = "../pcm-policy-dsl" }
+pcm-datalog-engine = { path = "../pcm-datalog-engine" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+blake3 = { workspace = true }
+ed25519-dalek = { workspace = true }

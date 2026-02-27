@@ -1,0 +1,13 @@
+[package]
+name = "pcm-cert-checker-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "PCM cert-checker Lean FFI 绑定（Rust 侧）"
+
+[dependencies]
+pcm-common = { path = "../pcm-common" }
+
+[build-dependencies]
+# 将来链接 Lean-extracted C 库
+# cc = "1"

@@ -1,0 +1,19 @@
+[package]
+name = "pcm-monitor-gateway"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "PCM 参考监控器网关（gRPC 服务）"
+
+[dependencies]
+pcm-common = { path = "../pcm-common" }
+pcm-policy-dsl = { path = "../pcm-policy-dsl" }
+pcm-datalog-engine = { path = "../pcm-datalog-engine" }
+pcm-cert = { path = "../pcm-cert" }
+pcm-cert-checker-ffi = { path = "../pcm-cert-checker-ffi" }
+tokio = { workspace = true }
+tonic = { workspace = true }
+prost = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }

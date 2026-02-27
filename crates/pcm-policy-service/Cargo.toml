@@ -1,0 +1,15 @@
+[package]
+name = "pcm-policy-service"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+pcm-common = { path = "../pcm-common" }
+pcm-policy-dsl = { path = "../pcm-policy-dsl" }
+tokio = { workspace = true }
+tonic = { workspace = true }
+prost = { workspace = true }
+sqlx = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
