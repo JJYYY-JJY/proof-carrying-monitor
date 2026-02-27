@@ -11,5 +11,8 @@ pub mod compiler;
 pub mod parser;
 
 pub use ast::*;
-pub use compiler::CompiledPolicy;
+pub use compiler::{
+    compile, decompile, CompileResult, CompileWarning, CompiledPolicy, FactSchema, IndexedRule,
+    PredicateInfo, Stratum,
+};
 pub use parser::parse_policy;
