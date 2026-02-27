@@ -1,0 +1,19 @@
+[licenses]
+allow = [
+    "Apache-2.0",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016",
+]
+confidence-threshold = 0.8
+
+[advisories]
+# Use default settings — deny all vulnerabilities
+
+[bans]
+# Use default settings
+
+[sources]
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
