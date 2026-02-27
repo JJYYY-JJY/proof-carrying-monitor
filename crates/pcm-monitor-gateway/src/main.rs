@@ -3,12 +3,12 @@
 //! 提供 gRPC MonitorService，实现 complete mediation。
 //! 所有外部副作用必须经过此服务的 Evaluate RPC。
 
-use anyhow::Result;
-
-mod service;
+use pcm_common::proto::pcm_v1::monitor_service_server::MonitorServiceServer;
+use pcm_monitor_gateway::service::MonitorServiceImpl;
+use tonic::transport::Server;
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter("pcm=debug,info")
         .json()
@@ -16,11 +16,19 @@ async fn main() -> Result<()> {
 
     tracing::info!("PCM Monitor Gateway starting...");
 
-    // TODO: 加载策略、初始化引擎、启动 gRPC 服务
-    let addr: std::net::SocketAddr = "[::]:50051".parse()?;
+    let port: u16 = std::env::var("PCM_GATEWAY_PORT")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(50051);
+    let addr: std::net::SocketAddr = format!("[::]:{port}").parse()?;
+
+    let svc = MonitorServiceImpl::new();
     tracing::info!(%addr, "listening");
 
-    // 占位：保持进程运行
-    tokio::signal::ctrl_c().await?;
+    Server::builder()
+        .add_service(MonitorServiceServer::new(svc))
+        .serve(addr)
+        .await?;
+
     Ok(())
 }
