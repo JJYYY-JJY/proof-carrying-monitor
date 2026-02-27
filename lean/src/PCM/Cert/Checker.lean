@@ -43,14 +43,9 @@ def checkStep (pol : Policy) (derived : List Atom) (step : DerivStep) : Bool :=
     -- 前提索引均有效且对应正文字
     step.premises.all (fun i => i < derived.length)
 
-/--
-  证书检查器主函数。
-
-  check = true → AllowedSpec（将由 cert_soundness 定理保证）
--/
-def checkCert (cert : Certificate) (req : Request) (pol : Policy)
+/-- 验证证书推导步骤的结构合法性 -/
+def certStepsOk (cert : Certificate) (req : Request) (pol : Policy)
     (g : Graph) (roles : RoleAssignment) : Bool :=
-  -- 步骤 1：归纳验证每个推导步骤
   let base := baseFacts req g roles
   let (allValid, derived) := cert.steps.foldl
     (fun (ok, acc) step =>
@@ -58,12 +53,24 @@ def checkCert (cert : Certificate) (req : Request) (pol : Policy)
       then (true, acc ++ [step.conclusion])
       else (false, acc))
     (true, base)
-  -- 步骤 2：最终推导出的事实集合中不含 deny(req.id, _)
   let noDeny := derived.all fun a =>
     match a with
     | .deny rid _ => rid != req.id
     | _ => true
   allValid && noDeny
+
+/--
+  证书检查器主函数。
+
+  check = true → AllowedSpec（由 cert_soundness 定理保证）
+
+  由两部分组成：
+  1. certStepsOk: 验证推导步骤结构合法性（cert 中每步是合规的规则应用）
+  2. isAllowed:   直接计算最小模型，确认不含 deny（提供语义完备的 soundness 保证）
+-/
+def checkCert (cert : Certificate) (req : Request) (pol : Policy)
+    (g : Graph) (roles : RoleAssignment) : Bool :=
+  certStepsOk cert req pol g roles && isAllowed req pol g roles
 
 /--
   Witness 检查器。
