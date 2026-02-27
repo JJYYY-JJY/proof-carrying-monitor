@@ -5,4 +5,8 @@
 pub mod generator;
 pub mod serialize;
 
-pub use generator::{generate_certificate, generate_witness};
+pub use generator::{
+    generate_all_witnesses, generate_certificate, generate_witness, CertStep, CertificateData,
+    SerializedAtom, ViolationPath, WitnessData,
+};
+pub use serialize::{deserialize_certificate, serialize_certificate};
