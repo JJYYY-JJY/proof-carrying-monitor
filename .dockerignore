@@ -1,0 +1,9 @@
+target/
+.git/
+lean/
+python/
+*.md
+docs/
+.github/
+.vscode/
+.idea/
