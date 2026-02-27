@@ -1,0 +1,30 @@
+# Docker Compose 配置 — CI 集成测试用
+# 用法：docker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from test-runner
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pcm
+      POSTGRES_PASSWORD: pcm
+      POSTGRES_DB: pcm_policies
+    volumes:
+      - ./docker/init-db.sh:/docker-entrypoint-initdb.d/01-init-db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pcm"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: docker/test-runner.Dockerfile
+    environment:
+      - DATABASE_URL=postgres://pcm:pcm@postgres:5432/pcm_policies
+      - RUST_LOG=info
+    depends_on:
+      postgres:
+        condition: service_healthy
