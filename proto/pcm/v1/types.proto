@@ -3,6 +3,9 @@ package pcm.v1;
 
 import "google/protobuf/timestamp.proto";
 
+option go_package = "github.com/user/proof-carrying-monitor/gen/pcm/v1;pcmv1";
+option java_package = "com.pcm.v1";
+
 // ============================================================
 // 基础枚举
 // ============================================================

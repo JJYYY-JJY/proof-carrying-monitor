@@ -5,5 +5,12 @@
 pub mod error;
 pub mod hash;
 
+/// Protobuf 生成的类型和服务定义
+pub mod proto {
+    pub mod pcm_v1 {
+        tonic::include_proto!("pcm.v1");
+    }
+}
+
 /// PCM 通用错误类型
 pub use error::PcmError;
