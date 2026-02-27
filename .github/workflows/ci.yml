@@ -1,0 +1,172 @@
+name: PCM CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ====================================================
+  # Lean 定理验证
+  # ====================================================
+  lean-proofs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan (Lean version manager)
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+            | sh -s -- -y --no-modify-path
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Install Lean toolchain
+        run: |
+          cd lean
+          elan toolchain install "$(cat lean-toolchain)"
+          elan override set "$(cat lean-toolchain)"
+      - name: Cache Lake packages
+        uses: actions/cache@v4
+        with:
+          path: lean/.lake
+          key: lake-${{ runner.os }}-${{ hashFiles('lean/lean-toolchain', 'lean/lake-manifest.json') }}
+          restore-keys: lake-${{ runner.os }}-
+      - name: Build Lean specs and proofs
+        run: |
+          cd lean
+          lake build PCM
+      - name: Verify soundness theorems
+        run: |
+          cd lean
+          lake build PCMProofs
+
+  # ====================================================
+  # Rust 检查与测试
+  # ====================================================
+  rust-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libclang-dev librocksdb-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format check
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace -- -D warnings
+      - name: Tests
+        run: cargo test --workspace
+
+  # ====================================================
+  # 安全扫描
+  # ====================================================
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Audit dependencies
+        run: cargo audit
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          severity: HIGH,CRITICAL
+          format: sarif
+          output: trivy-results.sarif
+      - name: Upload Trivy SARIF results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+  # ====================================================
+  # 集成测试
+  # ====================================================
+  integration:
+    needs: [rust-check, lean-proofs]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libclang-dev librocksdb-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Start Postgres
+        run: docker compose -f docker-compose.yml up -d postgres
+      - name: Wait for Postgres to be ready
+        run: |
+          for i in $(seq 1 15); do
+            docker compose exec -T postgres pg_isready -U pcm && break
+            echo "Waiting for postgres... ($i/15)"
+            sleep 2
+          done
+      - name: Run integration tests
+        run: cargo test --workspace -- --ignored
+        env:
+          DATABASE_URL: postgres://pcm:pcm@localhost:5432/pcm_policies
+
+  # ====================================================
+  # 策略 Diff 分析（仅 PR）
+  # ====================================================
+  policy-diff:
+    if: github.event_name == 'pull_request'
+    needs: [rust-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libclang-dev librocksdb-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build CLI
+        run: cargo build --release --package pcm-cli
+      - name: Check for policy changes
+        id: policy-check
+        run: |
+          if git diff --name-only origin/main...HEAD | grep -q '^policies/'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run diff analysis
+        if: steps.policy-check.outputs.changed == 'true'
+        run: |
+          echo "Policy diff analysis would run here"
+          # ./target/release/pcm diff --old main --new HEAD --output report.json
+          # ./target/release/pcm verify report.json
