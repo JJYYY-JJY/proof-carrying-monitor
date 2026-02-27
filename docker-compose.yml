@@ -1,0 +1,97 @@
+version: "3.9"
+
+services:
+  # ============================================================
+  # 参考监控器网关
+  # ============================================================
+  monitor-gateway:
+    build:
+      context: .
+      dockerfile: docker/monitor-gateway.Dockerfile
+    ports:
+      - "50051:50051"
+    environment:
+      - RUST_LOG=pcm=debug,info
+      - PCM_POLICY_PATH=/policies/example.pcm
+    volumes:
+      - ./policies:/policies:ro
+    depends_on:
+      - graph-service
+      - policy-service
+    networks:
+      - pcm-internal
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ============================================================
+  # 策略服务
+  # ============================================================
+  policy-service:
+    build:
+      context: .
+      dockerfile: docker/policy-service.Dockerfile
+    ports:
+      - "50052:50052"
+    environment:
+      - DATABASE_URL=postgres://pcm:pcm@postgres:5432/pcm_policies
+    depends_on:
+      - postgres
+    networks:
+      - pcm-internal
+
+  # ============================================================
+  # 依赖图服务
+  # ============================================================
+  graph-service:
+    build:
+      context: .
+      dockerfile: docker/graph-service.Dockerfile
+    ports:
+      - "50053:50053"
+    volumes:
+      - graph-data:/data/rocksdb
+    networks:
+      - pcm-internal
+
+  # ============================================================
+  # 审计日志服务
+  # ============================================================
+  audit-service:
+    build:
+      context: .
+      dockerfile: docker/audit-service.Dockerfile
+    ports:
+      - "50054:50054"
+    environment:
+      - DATABASE_URL=postgres://pcm:pcm@postgres:5432/pcm_audit
+    depends_on:
+      - postgres
+    networks:
+      - pcm-internal
+
+  # ============================================================
+  # 基础设施
+  # ============================================================
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pcm
+      POSTGRES_PASSWORD: pcm
+      POSTGRES_DB: pcm_policies
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - pcm-internal
+
+networks:
+  pcm-internal:
+    driver: bridge
+
+volumes:
+  pg-data:
+  graph-data:

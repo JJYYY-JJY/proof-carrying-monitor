@@ -1,0 +1,78 @@
+# K8s NetworkPolicy — Agent Pod 仅允许出口到 monitor-gateway
+# 部署后验证：在 agent pod 内尝试 curl 外部地址应被拒绝
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agent-egress-monitor-only
+  namespace: pcm
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: agent
+  policyTypes:
+    - Egress
+  egress:
+    # 仅允许连接 monitor-gateway
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: monitor-gateway
+      ports:
+        - port: 50051
+          protocol: TCP
+    # DNS 解析
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+# monitor-gateway 允许出口到所有外部服务（它是唯一出口点）
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitor-gateway-egress
+  namespace: pcm
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: monitor-gateway
+  policyTypes:
+    - Egress
+    - Ingress
+  ingress:
+    # 接收来自 agent 的请求
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: agent
+      ports:
+        - port: 50051
+          protocol: TCP
+    # 接收来自内部服务的请求
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: pcm
+      ports:
+        - port: 50051
+          protocol: TCP
+  egress:
+    # 允许连接内部服务
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: pcm
+    # 允许外部出口（monitor 是唯一出口点）
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
