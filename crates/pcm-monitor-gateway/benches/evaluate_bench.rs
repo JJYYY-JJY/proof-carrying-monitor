@@ -141,32 +141,44 @@ fn generate_graph(num_nodes: usize, num_edges: usize, leak_present: bool) -> Gra
         }
     }
 
-    let mut cursor = 0usize;
-    while edges.len() < num_edges {
-        let src = (cursor * 17 + 3) % num_nodes;
-        let dst = (cursor * 29 + 11) % num_nodes;
-        cursor += 1;
+    let edge_kinds = [
+        EdgeKind::DataFlow as i32,
+        EdgeKind::ControlFlow as i32,
+        EdgeKind::Causal as i32,
+        EdgeKind::Temporal as i32,
+    ];
+    let max_unique_edges = num_nodes
+        .saturating_mul(num_nodes.saturating_sub(1))
+        .saturating_mul(edge_kinds.len());
+    assert!(
+        num_edges <= max_unique_edges,
+        "requested {num_edges} edges, but only {max_unique_edges} unique edges are possible"
+    );
 
-        if src == dst {
-            continue;
-        }
-
-        let kind = match cursor % 4 {
-            0 => EdgeKind::DataFlow as i32,
-            1 => EdgeKind::ControlFlow as i32,
-            2 => EdgeKind::Causal as i32,
-            _ => EdgeKind::Temporal as i32,
-        };
-
-        if seen.insert((src, dst, kind)) {
-            edges.push(GraphEdge {
-                src: format!("node_{src}"),
-                dst: format!("node_{dst}"),
-                kind,
-                created_at: None,
-            });
+    'fill_edges: for offset in 1..num_nodes {
+        for src in 0..num_nodes {
+            let dst = (src + offset) % num_nodes;
+            for kind in edge_kinds {
+                if seen.insert((src, dst, kind)) {
+                    edges.push(GraphEdge {
+                        src: format!("node_{src}"),
+                        dst: format!("node_{dst}"),
+                        kind,
+                        created_at: None,
+                    });
+                    if edges.len() == num_edges {
+                        break 'fill_edges;
+                    }
+                }
+            }
         }
     }
+
+    assert_eq!(
+        edges.len(),
+        num_edges,
+        "graph generator failed to produce the requested edge count"
+    );
 
     GraphSnapshot {
         snapshot_hash: blake3_hash(
