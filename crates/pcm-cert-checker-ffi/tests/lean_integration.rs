@@ -144,6 +144,7 @@ fn assert_witness_case(
 }
 
 #[test]
+#[ignore = "requires built pcm_checker"]
 fn empty_allow_certificate_passes() {
     let rules = vec![];
     let request_facts = vec![action_fact("r1", "HttpOut", "alice", "api.example.com")];
@@ -160,6 +161,7 @@ fn empty_allow_certificate_passes() {
 }
 
 #[test]
+#[ignore = "requires built pcm_checker"]
 fn allow_certificate_with_role_rule_passes() {
     let rules = vec![Rule {
         head: precedes("a", "b"),
@@ -186,6 +188,7 @@ fn allow_certificate_with_role_rule_passes() {
 }
 
 #[test]
+#[ignore = "requires built pcm_checker"]
 fn allow_certificate_with_graph_rule_passes() {
     let rules = vec![Rule {
         head: precedes("start", "done"),
@@ -216,6 +219,7 @@ fn allow_certificate_with_graph_rule_passes() {
 }
 
 #[test]
+#[ignore = "requires built pcm_checker"]
 fn invalid_rule_index_certificate_fails() {
     let rules = vec![];
     let request_facts = vec![action_fact("r4", "HttpOut", "alice", "api.example.com")];
@@ -236,6 +240,7 @@ fn invalid_rule_index_certificate_fails() {
 }
 
 #[test]
+#[ignore = "requires built pcm_checker"]
 fn tampered_policy_hash_certificate_fails() {
     let rules = vec![];
     let request_facts = vec![action_fact("r5", "HttpOut", "alice", "api.example.com")];
@@ -251,6 +256,7 @@ fn tampered_policy_hash_certificate_fails() {
 }
 
 #[test]
+#[ignore = "requires built pcm_checker"]
 fn tampered_graph_hash_certificate_fails() {
     let rules = vec![];
     let request_facts = vec![action_fact("r6", "HttpOut", "alice", "api.example.com")];
@@ -266,6 +272,7 @@ fn tampered_graph_hash_certificate_fails() {
 }
 
 #[test]
+#[ignore = "requires built pcm_checker"]
 fn valid_deny_witness_passes() {
     let rules = vec![Rule {
         head: deny_atom("r7", "unauthorized_http"),
@@ -293,6 +300,7 @@ fn valid_deny_witness_passes() {
 }
 
 #[test]
+#[ignore = "requires built pcm_checker"]
 fn graph_deny_witness_passes() {
     let rules = vec![Rule {
         head: deny_atom("r8", "data_exfiltration"),
@@ -330,6 +338,7 @@ fn graph_deny_witness_passes() {
 }
 
 #[test]
+#[ignore = "requires built pcm_checker"]
 fn invalid_witness_base_fact_fails() {
     let rules = vec![Rule {
         head: deny_atom("r9", "unauthorized_http"),
@@ -354,6 +363,7 @@ fn invalid_witness_base_fact_fails() {
 }
 
 #[test]
+#[ignore = "requires built pcm_checker"]
 fn tampered_policy_hash_witness_fails() {
     let rules = vec![Rule {
         head: deny_atom("r10", "unauthorized_http"),
