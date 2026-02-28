@@ -4,13 +4,23 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+integration = []
+
 [dependencies]
 pcm-common = { path = "../pcm-common" }
 tokio = { workspace = true }
 tonic = { workspace = true }
 prost = { workspace = true }
+prost-types = { workspace = true }
 sqlx = { workspace = true }
 ed25519-dalek = { workspace = true }
 blake3 = { workspace = true }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+rand = "0.8"
+tokio-stream = { version = "0.1", features = ["net"] }
