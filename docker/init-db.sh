@@ -16,27 +16,32 @@ echo "=== PCM: Initializing pcm_policies schema ==="
 
 # 在 pcm_policies 数据库中创建策略表
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "pcm_policies" <<-'EOSQL'
-    CREATE TABLE IF NOT EXISTS policy_versions (
-        id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        policy_id       VARCHAR(255) NOT NULL,
-        version         VARCHAR(50) NOT NULL,
-        content_hash    BYTEA NOT NULL,
-        source_dsl      TEXT NOT NULL,
-        compiled_data   BYTEA,
-        is_active       BOOLEAN DEFAULT FALSE,
-        decidable       BOOLEAN DEFAULT TRUE,
-        author          VARCHAR(255),
-        commit_sha      VARCHAR(40),
-        created_at      TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(policy_id, version)
+    CREATE TABLE IF NOT EXISTS policies (
+        policy_id   TEXT PRIMARY KEY,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS policy_versions (
+        id            SERIAL PRIMARY KEY,
+        policy_id     TEXT NOT NULL REFERENCES policies(policy_id),
+        version       TEXT NOT NULL,
+        content_hash  BYTEA NOT NULL,
+        source_dsl    TEXT NOT NULL,
+        compiled_json JSONB,
+        author        TEXT NOT NULL DEFAULT '',
+        commit_sha    TEXT NOT NULL DEFAULT '',
+        is_active     BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(policy_id, version),
+        UNIQUE(policy_id, content_hash)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_policy_versions_policy_id
+        ON policy_versions(policy_id);
 
     CREATE INDEX IF NOT EXISTS idx_policy_versions_active
         ON policy_versions(policy_id, is_active)
         WHERE is_active = TRUE;
-
-    CREATE INDEX IF NOT EXISTS idx_policy_versions_hash
-        ON policy_versions(content_hash);
 EOSQL
 
 echo "=== PCM: Initializing pcm_audit schema ==="
