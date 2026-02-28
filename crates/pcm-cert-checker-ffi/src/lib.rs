@@ -380,19 +380,13 @@ pub fn verify_certificate_structured(
     let policy_bytes = serialize_rules_for_hash(rules);
     let expected_policy_hash = blake3_hash(&policy_bytes);
     if cert.policy_hash != expected_policy_hash {
-        return VerifyResult::fail(
-            "policy hash mismatch",
-            start.elapsed().as_micros() as u64,
-        );
+        return VerifyResult::fail("policy hash mismatch", start.elapsed().as_micros() as u64);
     }
 
     let request_bytes = serialize_atoms_for_hash(request_facts);
     let expected_request_hash = blake3_hash(&request_bytes);
     if cert.request_hash != expected_request_hash {
-        return VerifyResult::fail(
-            "request hash mismatch",
-            start.elapsed().as_micros() as u64,
-        );
+        return VerifyResult::fail("request hash mismatch", start.elapsed().as_micros() as u64);
     }
 
     // graph_hash: 从 all_base_facts 中减去 request_facts 得到的 "graph+roles" 部分
@@ -405,10 +399,7 @@ pub fn verify_certificate_structured(
     let graph_bytes = serde_json::to_vec(&graph_facts).unwrap_or_default();
     let expected_graph_hash = blake3_hash(&graph_bytes);
     if cert.graph_hash != expected_graph_hash {
-        return VerifyResult::fail(
-            "graph hash mismatch",
-            start.elapsed().as_micros() as u64,
-        );
+        return VerifyResult::fail("graph hash mismatch", start.elapsed().as_micros() as u64);
     }
 
     // ── 2. 归纳验证每个推导步骤 ──
@@ -532,14 +523,22 @@ fn check_deny_rule_satisfiable(rule: &Rule, facts: &[Atom]) -> bool {
         .body
         .iter()
         .filter_map(|l| {
-            if let Literal::Pos(a) = l { Some(a) } else { None }
+            if let Literal::Pos(a) = l {
+                Some(a)
+            } else {
+                None
+            }
         })
         .collect();
     let neg_lits: Vec<&Atom> = rule
         .body
         .iter()
         .filter_map(|l| {
-            if let Literal::Neg(a) = l { Some(a) } else { None }
+            if let Literal::Neg(a) = l {
+                Some(a)
+            } else {
+                None
+            }
         })
         .collect();
 
@@ -683,10 +682,7 @@ pub fn verify_witness_structured(
     for (i, atom) in matched_atoms.iter().enumerate() {
         if !all_base_facts.contains(atom) {
             return VerifyResult::fail(
-                format!(
-                    "matched_fact {} ({:?}) is not in base facts",
-                    i, atom
-                ),
+                format!("matched_fact {} ({:?}) is not in base facts", i, atom),
                 start.elapsed().as_micros() as u64,
             );
         }
@@ -701,14 +697,22 @@ pub fn verify_witness_structured(
         .body
         .iter()
         .filter_map(|l| {
-            if let Literal::Pos(a) = l { Some(a) } else { None }
+            if let Literal::Pos(a) = l {
+                Some(a)
+            } else {
+                None
+            }
         })
         .collect();
     let neg_body: Vec<&Atom> = rule
         .body
         .iter()
         .filter_map(|l| {
-            if let Literal::Neg(a) = l { Some(a) } else { None }
+            if let Literal::Neg(a) = l {
+                Some(a)
+            } else {
+                None
+            }
         })
         .collect();
 
@@ -867,7 +871,7 @@ pub fn verify_witness(
 mod tests {
     use super::*;
     use pcm_cert::generator::{
-        generate_certificate, generate_witness, serialize_atom, CertStep, SerializedAtom,
+        CertStep, SerializedAtom, generate_certificate, generate_witness, serialize_atom,
     };
     use pcm_common::hash::blake3_hash;
     use pcm_datalog_engine::engine::DatalogEngine;
@@ -971,20 +975,13 @@ mod tests {
     }
 
     /// 执行完整的 deny 流程：evaluate → generate_witness → verify
-    fn run_deny_flow(
-        rules: &[Rule],
-        request_facts: &[Atom],
-        extra_facts: &[Atom],
-    ) -> VerifyResult {
+    fn run_deny_flow(rules: &[Rule], request_facts: &[Atom], extra_facts: &[Atom]) -> VerifyResult {
         let mut all_base_facts = request_facts.to_vec();
         all_base_facts.extend_from_slice(extra_facts);
 
         let engine = DatalogEngine::new(rules.to_vec(), 100);
         let eval = engine.evaluate(all_base_facts.clone()).unwrap();
-        assert!(
-            eval.has_deny,
-            "expected deny but got allow"
-        );
+        assert!(eval.has_deny, "expected deny but got allow");
 
         let (policy_hash, _graph_hash, request_hash) =
             compute_hashes(rules, request_facts, &all_base_facts);
@@ -1054,7 +1051,11 @@ mod tests {
         let extra_facts: Vec<Atom> = vec![]; // 没有角色
 
         let result = run_deny_flow(&rules, &request_facts, &extra_facts);
-        assert!(result.valid, "expected valid witness, got: {:?}", result.error);
+        assert!(
+            result.valid,
+            "expected valid witness, got: {:?}",
+            result.error
+        );
     }
 
     #[test]
@@ -1309,7 +1310,9 @@ mod tests {
                     request: c("r1"),
                     reason: c("blocked"),
                 },
-                body: vec![Literal::Pos(action_fact("r1", "HttpOut", "mallory", "evil.com"))],
+                body: vec![Literal::Pos(action_fact(
+                    "r1", "HttpOut", "mallory", "evil.com",
+                ))],
             }];
             let req = vec![action_fact("r1", "HttpOut", "mallory", "evil.com")];
             let r = run_deny_flow(&rules, &req, &[]);
@@ -1473,7 +1476,10 @@ mod tests {
 
         let result = verify_certificate_structured(&cert, &request_facts, &rules, &all_base_facts);
         // 即使通过了步骤验证（如果能通过），最终 derived 包含 deny → 应该失败
-        assert!(!result.valid, "cert with deny conclusion should be rejected");
+        assert!(
+            !result.valid,
+            "cert with deny conclusion should be rejected"
+        );
     }
 
     #[test]
@@ -1596,8 +1602,7 @@ mod tests {
         let mut all_base_facts = request_facts.clone();
         all_base_facts.extend_from_slice(&extra_facts);
 
-        let (_, graph_hash, request_hash) =
-            compute_hashes(&rules, &request_facts, &all_base_facts);
+        let (_, graph_hash, request_hash) = compute_hashes(&rules, &request_facts, &all_base_facts);
 
         let cert = CertificateData {
             steps: vec![],
@@ -1608,7 +1613,13 @@ mod tests {
 
         let result = verify_certificate_structured(&cert, &request_facts, &rules, &all_base_facts);
         assert!(!result.valid);
-        assert!(result.error.as_ref().unwrap().contains("policy hash mismatch"));
+        assert!(
+            result
+                .error
+                .as_ref()
+                .unwrap()
+                .contains("policy hash mismatch")
+        );
     }
 
     #[test]
@@ -1637,8 +1648,7 @@ mod tests {
         let mut all_base_facts = request_facts.clone();
         all_base_facts.extend_from_slice(&extra_facts);
 
-        let (policy_hash, graph_hash, _) =
-            compute_hashes(&rules, &request_facts, &all_base_facts);
+        let (policy_hash, graph_hash, _) = compute_hashes(&rules, &request_facts, &all_base_facts);
 
         let cert = CertificateData {
             steps: vec![],
@@ -1649,7 +1659,13 @@ mod tests {
 
         let result = verify_certificate_structured(&cert, &request_facts, &rules, &all_base_facts);
         assert!(!result.valid);
-        assert!(result.error.as_ref().unwrap().contains("request hash mismatch"));
+        assert!(
+            result
+                .error
+                .as_ref()
+                .unwrap()
+                .contains("request hash mismatch")
+        );
     }
 
     // ════════════════════════════════════════════

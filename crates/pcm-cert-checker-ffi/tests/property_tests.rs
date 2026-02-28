@@ -118,7 +118,12 @@ fn arb_reason() -> impl Strategy<Value = String> {
 fn arb_ground_atom() -> impl Strategy<Value = Atom> {
     prop_oneof![
         // action(id, type, principal, target)
-        (arb_request_id(), arb_action_type(), arb_principal(), arb_target())
+        (
+            arb_request_id(),
+            arb_action_type(),
+            arb_principal(),
+            arb_target()
+        )
             .prop_map(|(id, at, p, t)| Atom::Action {
                 id: Term::Const(id),
                 action_type: Term::Const(at),
@@ -126,30 +131,26 @@ fn arb_ground_atom() -> impl Strategy<Value = Atom> {
                 target: Term::Const(t),
             }),
         // has_role(principal, role)
-        (arb_principal(), arb_role())
-            .prop_map(|(p, r)| Atom::HasRole {
-                principal: Term::Const(p),
-                role: Term::Const(r),
-            }),
+        (arb_principal(), arb_role()).prop_map(|(p, r)| Atom::HasRole {
+            principal: Term::Const(p),
+            role: Term::Const(r),
+        }),
         // data_label(data, label)
-        (arb_data_name(), arb_label())
-            .prop_map(|(d, l)| Atom::DataLabel {
-                data: Term::Const(d),
-                label: Term::Const(l),
-            }),
+        (arb_data_name(), arb_label()).prop_map(|(d, l)| Atom::DataLabel {
+            data: Term::Const(d),
+            label: Term::Const(l),
+        }),
         // graph_edge(src, dst, kind)
-        (arb_node_id(), arb_node_id(), arb_edge_kind())
-            .prop_map(|(s, d, k)| Atom::GraphEdge {
-                src: Term::Const(s),
-                dst: Term::Const(d),
-                kind: Term::Const(k),
-            }),
+        (arb_node_id(), arb_node_id(), arb_edge_kind()).prop_map(|(s, d, k)| Atom::GraphEdge {
+            src: Term::Const(s),
+            dst: Term::Const(d),
+            kind: Term::Const(k),
+        }),
         // graph_label(node, label)
-        (arb_node_id(), arb_label())
-            .prop_map(|(n, l)| Atom::GraphLabel {
-                node: Term::Const(n),
-                label: Term::Const(l),
-            }),
+        (arb_node_id(), arb_label()).prop_map(|(n, l)| Atom::GraphLabel {
+            node: Term::Const(n),
+            label: Term::Const(l),
+        }),
     ]
 }
 
@@ -168,24 +169,23 @@ fn arb_extra_body_literal() -> impl Strategy<Value = Literal> {
             role: Term::Const(r),
         })),
         // 正 data_label（ground）
-        (arb_data_name(), arb_label())
-            .prop_map(|(d, l)| Literal::Pos(Atom::DataLabel {
-                data: Term::Const(d),
-                label: Term::Const(l),
-            })),
+        (arb_data_name(), arb_label()).prop_map(|(d, l)| Literal::Pos(Atom::DataLabel {
+            data: Term::Const(d),
+            label: Term::Const(l),
+        })),
         // 正 graph_edge（ground）
-        (arb_node_id(), arb_node_id(), arb_edge_kind())
-            .prop_map(|(s, d, k)| Literal::Pos(Atom::GraphEdge {
+        (arb_node_id(), arb_node_id(), arb_edge_kind()).prop_map(|(s, d, k)| Literal::Pos(
+            Atom::GraphEdge {
                 src: Term::Const(s),
                 dst: Term::Const(d),
                 kind: Term::Const(k),
-            })),
+            }
+        )),
         // 正 graph_label（ground）
-        (arb_node_id(), arb_label())
-            .prop_map(|(n, l)| Literal::Pos(Atom::GraphLabel {
-                node: Term::Const(n),
-                label: Term::Const(l),
-            })),
+        (arb_node_id(), arb_label()).prop_map(|(n, l)| Literal::Pos(Atom::GraphLabel {
+            node: Term::Const(n),
+            label: Term::Const(l),
+        })),
     ]
 }
 
