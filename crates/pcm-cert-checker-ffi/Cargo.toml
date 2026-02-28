@@ -11,6 +11,7 @@ pcm-cert = { path = "../pcm-cert" }
 pcm-policy-dsl = { path = "../pcm-policy-dsl" }
 pcm-datalog-engine = { path = "../pcm-datalog-engine" }
 blake3 = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]

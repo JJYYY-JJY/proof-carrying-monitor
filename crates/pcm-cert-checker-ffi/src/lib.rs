@@ -13,6 +13,8 @@ use pcm_common::error::PcmError;
 use pcm_common::hash::blake3_hash;
 use pcm_policy_dsl::ast::{Atom, Literal, Rule, Term};
 
+pub mod lean_checker;
+
 // ──────────────────────────────────────────────
 // 类型定义
 // ──────────────────────────────────────────────
