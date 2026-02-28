@@ -1,0 +1,74 @@
+// ===================================================================
+// PCM 严格模式策略 (Strict Mode)
+// ===================================================================
+//
+// 适用场景：高安全要求的生产环境
+// 特点：对所有动作类型均要求角色授权 + 信息流约束 + 时序前置条件
+//
+// 注意：此策略非常严格，建议先在 dry_run 模式下测试
+// ===================================================================
+
+// === 基于角色的访问控制 (RBAC) ===
+
+// R1: HTTP 外发调用需要 http_allowed 角色
+deny(Req, "unauthorized_http") :-
+    action(Req, http_out, P, _),
+    !has_role(P, "http_allowed").
+
+// R2: 工具调用需要 tool_user 角色
+deny(Req, "unauthorized_tool_call") :-
+    action(Req, tool_call, P, _),
+    !has_role(P, "tool_user").
+
+// R3: 数据库写入需要 db_writer 角色
+deny(Req, "unauthorized_db_write") :-
+    action(Req, db_write, P, _),
+    !has_role(P, "db_writer").
+
+// R4: 敏感数据读取需要 auditor 角色
+deny(Req, "unauthorized_sensitive_read") :-
+    action(Req, db_read_sensitive, P, _),
+    !has_role(P, "auditor").
+
+// R5: 文件写入需要 file_writer 角色
+deny(Req, "unauthorized_file_write") :-
+    action(Req, file_write, P, _),
+    !has_role(P, "file_writer").
+
+// R6: 文件读取需要 file_reader 角色
+deny(Req, "unauthorized_file_read") :-
+    action(Req, file_read, P, _),
+    !has_role(P, "file_reader").
+
+// === 信息流约束 ===
+
+// R7: 机密数据不可流向公开端点（防数据泄露）
+deny(Req, "confidential_data_leak") :-
+    action(Req, http_out, _, Target),
+    graph_edge(Src, Target, data_flow),
+    graph_label(Src, Confidential),
+    graph_label(Target, Public).
+
+// R8: 秘密数据不可流向公开端点
+deny(Req, "secret_data_leak") :-
+    action(Req, http_out, _, Target),
+    graph_edge(Src, Target, data_flow),
+    graph_label(Src, Secret),
+    graph_label(Target, Public).
+
+// R9: 敏感数据标签约束 — 标记为 Secret 的目标不可通过 HTTP 发出
+deny(Req, "secret_target_blocked") :-
+    action(Req, http_out, _, Target),
+    data_label(Target, Secret).
+
+// === 时序前置条件 ===
+
+// R10: 数据库写入前必须经过认证步骤
+deny(Req, "db_write_no_auth") :-
+    action(Req, db_write, _, _),
+    !precedes(auth_check, Req).
+
+// R11: 文件写入前必须经过验证步骤
+deny(Req, "file_write_no_validation") :-
+    action(Req, file_write, _, _),
+    !precedes(validation_step, Req).

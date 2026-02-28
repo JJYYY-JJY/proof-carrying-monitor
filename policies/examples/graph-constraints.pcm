@@ -1,0 +1,54 @@
+// ===================================================================
+// PCM 图约束策略示例 (Graph Constraints)
+// ===================================================================
+//
+// 适用场景：需要基于运行时依赖图进行安全决策的系统
+// 特点：利用 graph_edge 和 graph_label 谓词实现信息流和控制流约束
+//
+// 依赖图在 graph-service 中实时维护，记录节点间的数据流/控制流关系。
+// 每个节点可附加敏感标签（Public / Internal / Confidential / Secret）。
+// ===================================================================
+
+// === 数据流约束 ===
+
+// R1: 机密数据不可通过数据流到达公开端点
+//     场景：Agent 试图将标记为 Confidential 的数据库结果发送到公开 API
+deny(Req, "confidential_to_public_leak") :-
+    action(Req, http_out, _, Target),
+    graph_edge(Src, Target, data_flow),
+    graph_label(Src, Confidential),
+    graph_label(Target, Public).
+
+// R2: 秘密数据不可通过数据流到达内部或更低密级端点
+//     场景：Secret 级别的密钥/凭证不得流向 Internal 级端点
+deny(Req, "secret_to_internal_leak") :-
+    action(Req, http_out, _, Target),
+    graph_edge(Src, Target, data_flow),
+    graph_label(Src, Secret),
+    graph_label(Target, Internal).
+
+// === 控制流约束 ===
+
+// R3: 秘密节点的控制流不可到达文件写入操作
+//     场景：防止 Secret 级控制路径触发的文件持久化
+deny(Req, "secret_control_flow_to_file") :-
+    graph_edge(A, B, control_flow),
+    graph_label(A, Secret),
+    action(Req, file_write, _, B).
+
+// R4: 跨密级因果链约束
+//     场景：Internal 节点不应因果依赖于 Secret 数据
+deny(Req, "cross_level_causal") :-
+    action(Req, tool_call, _, Target),
+    graph_edge(Src, Target, causal),
+    graph_label(Src, Secret),
+    graph_label(Target, Internal).
+
+// === 混合约束（图 + 角色） ===
+
+// R5: 访问包含机密数据流的目标需要 data_handler 角色
+deny(Req, "confidential_access_no_role") :-
+    action(Req, db_read_sensitive, P, Target),
+    graph_edge(_, Target, data_flow),
+    graph_label(Target, Confidential),
+    !has_role(P, "data_handler").

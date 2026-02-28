@@ -1,0 +1,21 @@
+// ===================================================================
+// PCM 宽松模式策略 (Permissive Mode)
+// ===================================================================
+//
+// 适用场景：开发/测试环境，或低安全要求的内部服务
+// 特点：仅限制最关键的操作（敏感数据读取 + 秘密数据外泄）
+//
+// 注意：此策略较为宽松，不建议直接用于生产环境
+// ===================================================================
+
+// R1: 敏感数据读取仍需要最低限度的角色验证
+deny(Req, "sensitive_read_unauthorized") :-
+    action(Req, db_read_sensitive, P, _),
+    !has_role(P, "audit_read").
+
+// R2: 最高密级数据不可外发（底线防护）
+deny(Req, "secret_data_leak") :-
+    action(Req, http_out, _, Target),
+    graph_edge(Src, Target, data_flow),
+    graph_label(Src, Secret),
+    graph_label(Target, Public).

@@ -1,0 +1,14 @@
+// 默认安全策略 — PCM 最小可行策略
+//
+// 此策略文件由 monitor-gateway 在 Docker Compose 部署时加载。
+// 包含两条基础安全规则，覆盖 HTTP 外发和敏感数据读取场景。
+
+// === R1: 禁止未授权的外部 HTTP 调用 ===
+deny(Req, "unauthorized_http") :-
+    action(Req, http_out, P, _),
+    !has_role(P, "http_allowed").
+
+// === R2: 敏感数据读取需要 audit_read 角色 ===
+deny(Req, "sensitive_read_unauthorized") :-
+    action(Req, db_read_sensitive, P, _),
+    !has_role(P, "audit_read").
