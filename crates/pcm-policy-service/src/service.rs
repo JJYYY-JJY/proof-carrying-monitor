@@ -3,10 +3,9 @@
 use std::sync::Arc;
 
 use pcm_common::proto::pcm_v1::{
-    policy_service_server::PolicyService, ActivatePolicyRequest, ActivatePolicyResponse,
-    CompilePolicyRequest, CompilePolicyResponse, CreatePolicyRequest, GetPolicyRequest,
-    ListPolicyVersionsRequest, ListPolicyVersionsResponse, ValidatePolicyRequest,
-    ValidatePolicyResponse,
+    ActivatePolicyRequest, ActivatePolicyResponse, CompilePolicyRequest, CompilePolicyResponse,
+    CreatePolicyRequest, GetPolicyRequest, ListPolicyVersionsRequest, ListPolicyVersionsResponse,
+    ValidatePolicyRequest, ValidatePolicyResponse, policy_service_server::PolicyService,
 };
 use tonic::{Request, Response, Status};
 
@@ -143,23 +142,17 @@ impl PolicyService for PolicyServiceImpl {
         tracing::info!("CompilePolicy");
 
         // 1. Parse
-        let ast = pcm_policy_dsl::parse_policy(&req.source_dsl).map_err(|e| {
-            Status::invalid_argument(format!("syntax error: {e}"))
-        })?;
+        let ast = pcm_policy_dsl::parse_policy(&req.source_dsl)
+            .map_err(|e| Status::invalid_argument(format!("syntax error: {e}")))?;
 
         // 2. Compile
-        let compile_result =
-            pcm_policy_dsl::compile(&ast, "0.0.0").map_err(|e| {
-                Status::invalid_argument(format!("compilation error: {e}"))
-            })?;
+        let compile_result = pcm_policy_dsl::compile(&ast, "0.0.0")
+            .map_err(|e| Status::invalid_argument(format!("compilation error: {e}")))?;
 
         // 3. Serialize compiled policy
-        let compiled_bytes =
-            serde_json::to_vec(&compile_result.policy).map_err(|e| {
-                Status::internal(format!("failed to serialize compiled policy: {e}"))
-            })?;
-        let content_hash =
-            pcm_common::hash::blake3_hash(&compiled_bytes).to_vec();
+        let compiled_bytes = serde_json::to_vec(&compile_result.policy)
+            .map_err(|e| Status::internal(format!("failed to serialize compiled policy: {e}")))?;
+        let content_hash = pcm_common::hash::blake3_hash(&compiled_bytes).to_vec();
 
         let compiled = pcm_common::proto::pcm_v1::CompiledPolicy {
             content: compiled_bytes,
@@ -208,12 +201,7 @@ impl PolicyService for PolicyServiceImpl {
         // 2. Compile (semantic validation)
         match pcm_policy_dsl::compile(&ast, "0.0.0") {
             Ok(result) => {
-                warnings.extend(
-                    result
-                        .warnings
-                        .iter()
-                        .map(|w| w.message.clone()),
-                );
+                warnings.extend(result.warnings.iter().map(|w| w.message.clone()));
             }
             Err(e) => {
                 errors.push(format!("semantic error: {e}"));

@@ -9,10 +9,9 @@
 use std::sync::Arc;
 
 use pcm_common::proto::pcm_v1::{
-    policy_service_client::PolicyServiceClient,
+    ActivatePolicyRequest, CompilePolicyRequest, CreatePolicyRequest, GetPolicyRequest,
+    ValidatePolicyRequest, policy_service_client::PolicyServiceClient,
     policy_service_server::PolicyServiceServer,
-    ActivatePolicyRequest, CompilePolicyRequest, CreatePolicyRequest,
-    GetPolicyRequest, ValidatePolicyRequest,
 };
 use pcm_policy_service::service::PolicyServiceImpl;
 use pcm_policy_service::store::PolicyStore;

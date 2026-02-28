@@ -22,10 +22,8 @@ async fn main() -> Result<()> {
         .json()
         .init();
 
-    let database_url =
-        std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            "postgresql://pcm:pcm@localhost:5432/pcm_policies".to_string()
-        });
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgresql://pcm:pcm@localhost:5432/pcm_policies".to_string());
 
     let max_connections: u32 = std::env::var("PCM_DB_MAX_CONNECTIONS")
         .ok()

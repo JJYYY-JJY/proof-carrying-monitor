@@ -193,10 +193,7 @@ impl PolicyStore {
     }
 
     /// Get the currently active version for a policy.
-    pub async fn get_active_policy(
-        &self,
-        policy_id: &str,
-    ) -> Result<Option<PolicyVersionRecord>> {
+    pub async fn get_active_policy(&self, policy_id: &str) -> Result<Option<PolicyVersionRecord>> {
         let row = sqlx::query(
             r#"
             SELECT policy_id, version, content_hash, source_dsl,
@@ -293,11 +290,7 @@ impl PolicyStore {
     ///
     /// Returns `true` if the version was activated, `false` if it was
     /// already active.
-    pub async fn activate_policy(
-        &self,
-        policy_id: &str,
-        version: &str,
-    ) -> Result<bool> {
+    pub async fn activate_policy(&self, policy_id: &str, version: &str) -> Result<bool> {
         // 1. Check that the requested version exists
         let target = self
             .get_policy(policy_id, Some(version))
@@ -377,10 +370,7 @@ impl PolicyStore {
     }
 
     /// Find an existing version record by content hash (across all policies).
-    async fn find_by_content_hash(
-        &self,
-        hash: &[u8],
-    ) -> Result<Option<PolicyVersionRecord>> {
+    async fn find_by_content_hash(&self, hash: &[u8]) -> Result<Option<PolicyVersionRecord>> {
         let row = sqlx::query(
             r#"
             SELECT policy_id, version, content_hash, source_dsl,
@@ -451,11 +441,8 @@ pub(crate) fn increment_minor(version: &str) -> String {
 
 /// Compare two semver-like version strings by their numeric components.
 pub(crate) fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
-    let parse = |s: &str| -> Vec<u64> {
-        s.split('.')
-            .filter_map(|p| p.parse::<u64>().ok())
-            .collect()
-    };
+    let parse =
+        |s: &str| -> Vec<u64> { s.split('.').filter_map(|p| p.parse::<u64>().ok()).collect() };
     parse(a).cmp(&parse(b))
 }
 
