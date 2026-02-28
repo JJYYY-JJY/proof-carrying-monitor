@@ -158,11 +158,11 @@ impl PolicyLoader {
         // content_hash 去重
         {
             let current = self.current_hash.read().unwrap();
-            if let Some(ref h) = *current {
-                if *h == new_hash {
-                    tracing::debug!("policy unchanged, skipping reload");
-                    return Ok(());
-                }
+            if let Some(ref h) = *current
+                && *h == new_hash
+            {
+                tracing::debug!("policy unchanged, skipping reload");
+                return Ok(());
             }
         }
 

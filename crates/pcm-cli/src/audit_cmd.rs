@@ -71,8 +71,7 @@ async fn run_async(
     // ── 4. 格式化输出 ──
     match format.as_str() {
         "json" => {
-            let json_records: Vec<serde_json::Value> =
-                records.iter().map(|r| record_to_json(r)).collect();
+            let json_records: Vec<serde_json::Value> = records.iter().map(record_to_json).collect();
             println!("{}", serde_json::to_string_pretty(&json_records)?);
         }
         _ => {
@@ -107,7 +106,7 @@ async fn run_async(
                 let time = record
                     .recorded_at
                     .as_ref()
-                    .map(|t| format_timestamp(t))
+                    .map(format_timestamp)
                     .unwrap_or_else(|| "-".to_string());
 
                 println!(

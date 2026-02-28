@@ -102,10 +102,10 @@ fn write_checker_input(child: &mut std::process::Child, payload: &[u8]) -> std::
 fn parse_checker_output(output: std::process::Output) -> std::io::Result<CheckerOutput> {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        return Err(std::io::Error::new(
-            ErrorKind::Other,
-            format!("exit {}: {}", output.status, stderr),
-        ));
+        return Err(std::io::Error::other(format!(
+            "exit {}: {}",
+            output.status, stderr
+        )));
     }
 
     serde_json::from_slice(&output.stdout).map_err(|err| {
@@ -333,7 +333,11 @@ fn partition_base_facts(
     ))
 }
 
-fn bytes_json(bytes: &[u8; 32]) -> Value {
+type Hash32 = [u8; 32];
+type CertificateHashTriple = (Hash32, Hash32, Hash32);
+type WitnessHashPair = (Hash32, Hash32);
+
+fn bytes_json(bytes: &Hash32) -> Value {
     Value::Array(bytes.iter().map(|byte| Value::from(*byte)).collect())
 }
 
@@ -484,7 +488,7 @@ fn expected_certificate_hashes(
     rules: &[Rule],
     request_facts: &[Atom],
     all_base_facts: &[Atom],
-) -> Result<([u8; 32], [u8; 32], [u8; 32]), String> {
+) -> Result<CertificateHashTriple, String> {
     let policy_bytes = serde_json::to_vec(rules)
         .map_err(|err| format!("failed to encode policy rules: {}", err))?;
     let request_bytes = serde_json::to_vec(request_facts)
@@ -506,7 +510,7 @@ fn expected_certificate_hashes(
 fn expected_witness_hashes(
     rules: &[Rule],
     request_facts: &[Atom],
-) -> Result<([u8; 32], [u8; 32]), String> {
+) -> Result<WitnessHashPair, String> {
     let policy_bytes = serde_json::to_vec(rules)
         .map_err(|err| format!("failed to encode policy rules: {}", err))?;
     let request_bytes = serde_json::to_vec(request_facts)

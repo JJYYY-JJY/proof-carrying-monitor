@@ -9,6 +9,7 @@
 //!
 //! **本地运行（需先启动所有服务）**:
 //! ```bash
+//! PCM_RUN_E2E=1 \
 //! PCM_MONITOR_ENDPOINT=http://localhost:50051 \
 //! PCM_POLICY_ENDPOINT=http://localhost:50052 \
 //! PCM_GRAPH_ENDPOINT=http://localhost:50053 \
@@ -42,7 +43,9 @@ use pcm_e2e_tests::test_env::*;
 async fn scenario_1_allow_happy_path() {
     init_tracing();
 
-    let mut env = TestEnv::connect().await;
+    let Some(mut env) = TestEnv::connect_if_enabled().await else {
+        return;
+    };
     let req_id = unique_request_id("e2e-s1-allow");
 
     // 发送 Evaluate：admin 角色有 http_allowed → ALLOW
@@ -138,7 +141,9 @@ async fn scenario_1_allow_happy_path() {
 async fn scenario_2_deny_with_witness() {
     init_tracing();
 
-    let mut env = TestEnv::connect().await;
+    let Some(mut env) = TestEnv::connect_if_enabled().await else {
+        return;
+    };
     let req_id = unique_request_id("e2e-s2-deny");
 
     // guest 没有 http_allowed → DENY
@@ -257,7 +262,9 @@ async fn scenario_2_deny_with_witness() {
 async fn scenario_3_graph_constraint_evaluation() {
     init_tracing();
 
-    let mut env = TestEnv::connect().await;
+    let Some(mut env) = TestEnv::connect_if_enabled().await else {
+        return;
+    };
     let session_id = unique_request_id("e2e-s3-graph");
 
     // ── Step 1: 追加节点和边 ──
@@ -456,7 +463,9 @@ const INVALID_POLICY: &str = "this is absolutely not valid policy DSL syntax !!!
 async fn scenario_4_policy_compile_and_version_management() {
     init_tracing();
 
-    let mut env = TestEnv::connect().await;
+    let Some(mut env) = TestEnv::connect_if_enabled().await else {
+        return;
+    };
 
     // ── Step 1: CreatePolicy ──
     let created = tokio::time::timeout(
@@ -622,7 +631,9 @@ async fn scenario_4_policy_compile_and_version_management() {
 async fn scenario_5_fail_closed_missing_request() {
     init_tracing();
 
-    let mut env = TestEnv::connect().await;
+    let Some(mut env) = TestEnv::connect_if_enabled().await else {
+        return;
+    };
 
     let req = EvaluateRequest {
         request: None,
@@ -662,7 +673,9 @@ async fn scenario_5_fail_closed_missing_request() {
 async fn scenario_5_fail_closed_empty_request_id() {
     init_tracing();
 
-    let mut env = TestEnv::connect().await;
+    let Some(mut env) = TestEnv::connect_if_enabled().await else {
+        return;
+    };
 
     let req = EvaluateRequest {
         request: Some(Request {
@@ -715,7 +728,9 @@ async fn scenario_5_fail_closed_empty_request_id() {
 async fn scenario_5_fail_closed_unspecified_action_type() {
     init_tracing();
 
-    let mut env = TestEnv::connect().await;
+    let Some(mut env) = TestEnv::connect_if_enabled().await else {
+        return;
+    };
 
     let req = EvaluateRequest {
         request: Some(Request {
@@ -768,7 +783,9 @@ async fn scenario_5_fail_closed_unspecified_action_type() {
 async fn scenario_5_no_allow_leaks() {
     init_tracing();
 
-    let mut env = TestEnv::connect().await;
+    let Some(mut env) = TestEnv::connect_if_enabled().await else {
+        return;
+    };
 
     let bad_requests: Vec<(&str, EvaluateRequest)> = vec![
         (
@@ -840,7 +857,9 @@ async fn scenario_5_no_allow_leaks() {
 async fn scenario_5_batch_mixed_requests() {
     init_tracing();
 
-    let mut env = TestEnv::connect().await;
+    let Some(mut env) = TestEnv::connect_if_enabled().await else {
+        return;
+    };
 
     let good_id = unique_request_id("e2e-s5-batch-good");
     let deny_id = unique_request_id("e2e-s5-batch-deny");

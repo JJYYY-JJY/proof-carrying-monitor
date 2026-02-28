@@ -179,13 +179,15 @@ impl MonitorServiceImpl {
     }
 
     /// 验证 EvaluateRequest 中的 Request 字段
-    fn validate_request(req: &pcm_common::proto::pcm_v1::Request) -> Result<(), Status> {
+    fn validate_request(req: &pcm_common::proto::pcm_v1::Request) -> Result<(), Box<Status>> {
         if req.request_id.is_empty() {
-            return Err(Status::invalid_argument("empty request_id"));
+            return Err(Box::new(Status::invalid_argument("empty request_id")));
         }
         // action_type == 0 means ACTION_TYPE_UNSPECIFIED
         if ActionType::try_from(req.action_type) == Ok(ActionType::Unspecified) {
-            return Err(Status::invalid_argument("unspecified action_type"));
+            return Err(Box::new(Status::invalid_argument(
+                "unspecified action_type",
+            )));
         }
         Ok(())
     }
@@ -197,7 +199,7 @@ impl MonitorServiceImpl {
         dry_run: bool,
         graph_snapshot: Option<&GraphSnapshot>,
     ) -> Result<EvaluateResponse, Status> {
-        Self::validate_request(req)?;
+        Self::validate_request(req).map_err(|status| *status)?;
         Ok(self
             .evaluate_single_with_snapshot(req, dry_run, graph_snapshot)
             .await)
@@ -431,6 +433,12 @@ impl MonitorServiceImpl {
     }
 }
 
+impl Default for MonitorServiceImpl {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// 创建带空规则的默认 CompiledPolicy
 fn default_compiled_policy() -> CompiledPolicy {
     let empty_ast = PolicyAst { rules: vec![] };
@@ -461,7 +469,7 @@ impl MonitorService for MonitorServiceImpl {
             .as_ref()
             .ok_or_else(|| Status::invalid_argument("missing request"))?;
 
-        Self::validate_request(inner_req)?;
+        Self::validate_request(inner_req).map_err(|status| *status)?;
 
         tracing::info!(
             request_id = %inner_req.request_id,
@@ -490,7 +498,7 @@ impl MonitorService for MonitorServiceImpl {
                 .as_ref()
                 .ok_or_else(|| Status::invalid_argument("missing request"))?;
 
-            Self::validate_request(inner_req)?;
+            Self::validate_request(inner_req).map_err(|status| *status)?;
 
             tracing::info!(
                 request_id = %inner_req.request_id,

@@ -18,6 +18,7 @@ const DEFAULT_MONITOR_ENDPOINT: &str = "http://localhost:50051";
 const DEFAULT_POLICY_ENDPOINT: &str = "http://localhost:50052";
 const DEFAULT_GRAPH_ENDPOINT: &str = "http://localhost:50053";
 const DEFAULT_AUDIT_ENDPOINT: &str = "http://localhost:50054";
+const RUN_E2E_ENV: &str = "PCM_RUN_E2E";
 
 /// 健康检查最大重试次数
 const HEALTH_CHECK_MAX_RETRIES: u32 = 30;
@@ -35,6 +36,17 @@ pub struct TestEnv {
 }
 
 impl TestEnv {
+    pub async fn connect_if_enabled() -> Option<Self> {
+        if !live_e2e_enabled() {
+            eprintln!(
+                "skipping live e2e test: set {RUN_E2E_ENV}=1 and start the PCM services to run it"
+            );
+            return None;
+        }
+
+        Some(Self::connect().await)
+    }
+
     /// 连接所有服务，等待它们就绪
     pub async fn connect() -> Self {
         let monitor_endpoint = std::env::var("PCM_MONITOR_ENDPOINT")
@@ -124,6 +136,13 @@ impl TestEnv {
 // ─────────────────────────────────────────────────────────────
 
 /// 构造标准的 EvaluateRequest
+fn live_e2e_enabled() -> bool {
+    std::env::var(RUN_E2E_ENV).is_ok_and(|value| {
+        value == "1" || value.eq_ignore_ascii_case("true") || value.eq_ignore_ascii_case("yes")
+    })
+}
+
+/// 鏋勯€犳爣鍑嗙殑 EvaluateRequest
 pub fn make_evaluate_request(
     request_id: &str,
     action_type: ActionType,
