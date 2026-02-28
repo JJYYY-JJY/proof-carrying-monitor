@@ -46,7 +46,11 @@ fn session_prefix(session: &str) -> Vec<u8> {
 
 /// Normalise an incoming session id — empty string becomes `"default"`.
 fn normalise_session(session_id: &str) -> &str {
-    if session_id.is_empty() { "default" } else { session_id }
+    if session_id.is_empty() {
+        "default"
+    } else {
+        session_id
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -61,7 +65,13 @@ impl GraphStore {
         let edges = db.open_tree("edges").context("open edges tree")?;
         let snapshots = db.open_tree("snapshots").context("open snapshots tree")?;
         let metadata = db.open_tree("metadata").context("open metadata tree")?;
-        Ok(Self { db, nodes, edges, snapshots, metadata })
+        Ok(Self {
+            db,
+            nodes,
+            edges,
+            snapshots,
+            metadata,
+        })
     }
 
     // -- Node operations ---------------------------------------------------
@@ -79,7 +89,10 @@ impl GraphStore {
             };
 
             // Build a (potentially patched) node with the resolved id.
-            let stored = GraphNode { node_id: id.clone(), ..node.clone() };
+            let stored = GraphNode {
+                node_id: id.clone(),
+                ..node.clone()
+            };
             let encoded = stored.encode_to_vec();
             self.nodes.insert(node_key(session, &id), encoded)?;
         }
@@ -91,8 +104,8 @@ impl GraphStore {
         let session = normalise_session(session_id);
         match self.nodes.get(node_key(session, node_id))? {
             Some(bytes) => {
-                let node = GraphNode::decode(bytes.as_ref())
-                    .context("failed to decode GraphNode")?;
+                let node =
+                    GraphNode::decode(bytes.as_ref()).context("failed to decode GraphNode")?;
                 Ok(Some(node))
             }
             None => Ok(None),
@@ -108,10 +121,18 @@ impl GraphStore {
         for edge in edges {
             // Validate endpoints
             if self.nodes.get(node_key(session, &edge.src))?.is_none() {
-                bail!("source node '{}' does not exist in session '{}'", edge.src, session);
+                bail!(
+                    "source node '{}' does not exist in session '{}'",
+                    edge.src,
+                    session
+                );
             }
             if self.nodes.get(node_key(session, &edge.dst))?.is_none() {
-                bail!("destination node '{}' does not exist in session '{}'", edge.dst, session);
+                bail!(
+                    "destination node '{}' does not exist in session '{}'",
+                    edge.dst,
+                    session
+                );
             }
 
             let key = edge_key(session, &edge.src, &edge.dst, edge.kind);
@@ -162,7 +183,10 @@ impl GraphStore {
 
         // Merkle roots
         let nodes_root = merkle_root(
-            &nodes.iter().map(|n| blake3_hash(n.node_id.as_bytes())).collect::<Vec<_>>(),
+            &nodes
+                .iter()
+                .map(|n| blake3_hash(n.node_id.as_bytes()))
+                .collect::<Vec<_>>(),
         );
         let edges_root = merkle_root(
             &edges
@@ -191,7 +215,8 @@ impl GraphStore {
         let snapshot_hash = blake3_hash(&hash_input).to_vec();
 
         // Persist snapshot hash
-        self.snapshots.insert(session.as_bytes(), snapshot_hash.as_slice())?;
+        self.snapshots
+            .insert(session.as_bytes(), snapshot_hash.as_slice())?;
 
         Ok(GraphSnapshot {
             snapshot_hash,
@@ -224,7 +249,9 @@ impl GraphStore {
             if !edge_filter.is_empty() && !edge_filter.contains(&kind) {
                 continue;
             }
-            adj.entry(edge.src.clone()).or_default().push((edge.dst.clone(), kind));
+            adj.entry(edge.src.clone())
+                .or_default()
+                .push((edge.dst.clone(), kind));
         }
 
         // BFS collecting all simple paths
@@ -334,7 +361,8 @@ mod tests {
     /// Create a fresh temporary sled database for each test.
     fn temp_store() -> GraphStore {
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!("pcm-graph-test-{}-{}", std::process::id(), id));
+        let dir =
+            std::env::temp_dir().join(format!("pcm-graph-test-{}-{}", std::process::id(), id));
         GraphStore::open(dir.to_str().unwrap()).expect("open temp store")
     }
 
@@ -376,7 +404,9 @@ mod tests {
     fn test_node_dedup() {
         let store = temp_store();
         let node = make_node("n1", NodeKind::Entity, "user");
-        store.add_nodes("s1", &[node.clone(), node.clone()]).unwrap();
+        store
+            .add_nodes("s1", &[node.clone(), node.clone()])
+            .unwrap();
         assert_eq!(store.node_count("s1").unwrap(), 1);
     }
 
@@ -421,10 +451,13 @@ mod tests {
     fn test_add_edge_valid() {
         let store = temp_store();
         store
-            .add_nodes("s1", &[
-                make_node("a", NodeKind::Entity, "A"),
-                make_node("b", NodeKind::Entity, "B"),
-            ])
+            .add_nodes(
+                "s1",
+                &[
+                    make_node("a", NodeKind::Entity, "A"),
+                    make_node("b", NodeKind::Entity, "B"),
+                ],
+            )
             .unwrap();
 
         store
@@ -436,7 +469,9 @@ mod tests {
     #[test]
     fn test_add_edge_missing_src() {
         let store = temp_store();
-        store.add_nodes("s1", &[make_node("b", NodeKind::Entity, "B")]).unwrap();
+        store
+            .add_nodes("s1", &[make_node("b", NodeKind::Entity, "B")])
+            .unwrap();
         let result = store.add_edges("s1", &[make_edge("missing", "b", EdgeKind::DataFlow)]);
         assert!(result.is_err());
     }
@@ -444,7 +479,9 @@ mod tests {
     #[test]
     fn test_add_edge_missing_dst() {
         let store = temp_store();
-        store.add_nodes("s1", &[make_node("a", NodeKind::Entity, "A")]).unwrap();
+        store
+            .add_nodes("s1", &[make_node("a", NodeKind::Entity, "A")])
+            .unwrap();
         let result = store.add_edges("s1", &[make_edge("a", "missing", EdgeKind::DataFlow)]);
         assert!(result.is_err());
     }
@@ -488,7 +525,9 @@ mod tests {
         let store = temp_store();
         let snap1 = store.get_snapshot("s1").unwrap();
 
-        store.add_nodes("s1", &[make_node("x", NodeKind::Data, "X")]).unwrap();
+        store
+            .add_nodes("s1", &[make_node("x", NodeKind::Data, "X")])
+            .unwrap();
         // snapshot_hash includes timestamp so we cannot compare directly; but the
         // node content changes guarantees internal merkle roots differ.
         let snap2 = store.get_snapshot("s1").unwrap();
@@ -501,17 +540,23 @@ mod tests {
     fn test_reachable_simple_chain() {
         let store = temp_store();
         store
-            .add_nodes("s1", &[
-                make_node("a", NodeKind::Entity, "A"),
-                make_node("b", NodeKind::Entity, "B"),
-                make_node("c", NodeKind::Entity, "C"),
-            ])
+            .add_nodes(
+                "s1",
+                &[
+                    make_node("a", NodeKind::Entity, "A"),
+                    make_node("b", NodeKind::Entity, "B"),
+                    make_node("c", NodeKind::Entity, "C"),
+                ],
+            )
             .unwrap();
         store
-            .add_edges("s1", &[
-                make_edge("a", "b", EdgeKind::DataFlow),
-                make_edge("b", "c", EdgeKind::DataFlow),
-            ])
+            .add_edges(
+                "s1",
+                &[
+                    make_edge("a", "b", EdgeKind::DataFlow),
+                    make_edge("b", "c", EdgeKind::DataFlow),
+                ],
+            )
             .unwrap();
 
         let (reachable, paths) = store.query_reachable("s1", "a", "c", &[]).unwrap();
@@ -524,10 +569,13 @@ mod tests {
     fn test_unreachable() {
         let store = temp_store();
         store
-            .add_nodes("s1", &[
-                make_node("a", NodeKind::Entity, "A"),
-                make_node("b", NodeKind::Entity, "B"),
-            ])
+            .add_nodes(
+                "s1",
+                &[
+                    make_node("a", NodeKind::Entity, "A"),
+                    make_node("b", NodeKind::Entity, "B"),
+                ],
+            )
             .unwrap();
         // No edges: a -> b is unreachable
         let (reachable, paths) = store.query_reachable("s1", "a", "b", &[]).unwrap();
@@ -539,18 +587,24 @@ mod tests {
     fn test_reachable_with_cycle() {
         let store = temp_store();
         store
-            .add_nodes("s1", &[
-                make_node("a", NodeKind::Entity, "A"),
-                make_node("b", NodeKind::Entity, "B"),
-                make_node("c", NodeKind::Entity, "C"),
-            ])
+            .add_nodes(
+                "s1",
+                &[
+                    make_node("a", NodeKind::Entity, "A"),
+                    make_node("b", NodeKind::Entity, "B"),
+                    make_node("c", NodeKind::Entity, "C"),
+                ],
+            )
             .unwrap();
         store
-            .add_edges("s1", &[
-                make_edge("a", "b", EdgeKind::DataFlow),
-                make_edge("b", "c", EdgeKind::DataFlow),
-                make_edge("c", "a", EdgeKind::DataFlow), // cycle
-            ])
+            .add_edges(
+                "s1",
+                &[
+                    make_edge("a", "b", EdgeKind::DataFlow),
+                    make_edge("b", "c", EdgeKind::DataFlow),
+                    make_edge("c", "a", EdgeKind::DataFlow), // cycle
+                ],
+            )
             .unwrap();
 
         let (reachable, paths) = store.query_reachable("s1", "a", "c", &[]).unwrap();
@@ -562,23 +616,28 @@ mod tests {
     fn test_reachable_edge_filter() {
         let store = temp_store();
         store
-            .add_nodes("s1", &[
-                make_node("a", NodeKind::Entity, "A"),
-                make_node("b", NodeKind::Entity, "B"),
-            ])
+            .add_nodes(
+                "s1",
+                &[
+                    make_node("a", NodeKind::Entity, "A"),
+                    make_node("b", NodeKind::Entity, "B"),
+                ],
+            )
             .unwrap();
         store
             .add_edges("s1", &[make_edge("a", "b", EdgeKind::ControlFlow)])
             .unwrap();
 
         // Filter for DataFlow only — should NOT find a->b
-        let (reachable, _) =
-            store.query_reachable("s1", "a", "b", &[EdgeKind::DataFlow]).unwrap();
+        let (reachable, _) = store
+            .query_reachable("s1", "a", "b", &[EdgeKind::DataFlow])
+            .unwrap();
         assert!(!reachable);
 
         // Filter for ControlFlow — should find it
-        let (reachable, _) =
-            store.query_reachable("s1", "a", "b", &[EdgeKind::ControlFlow]).unwrap();
+        let (reachable, _) = store
+            .query_reachable("s1", "a", "b", &[EdgeKind::ControlFlow])
+            .unwrap();
         assert!(reachable);
     }
 
@@ -588,10 +647,13 @@ mod tests {
     fn test_clear_session() {
         let store = temp_store();
         store
-            .add_nodes("s1", &[
-                make_node("a", NodeKind::Entity, "A"),
-                make_node("b", NodeKind::Entity, "B"),
-            ])
+            .add_nodes(
+                "s1",
+                &[
+                    make_node("a", NodeKind::Entity, "A"),
+                    make_node("b", NodeKind::Entity, "B"),
+                ],
+            )
             .unwrap();
         store
             .add_edges("s1", &[make_edge("a", "b", EdgeKind::DataFlow)])
@@ -612,19 +674,25 @@ mod tests {
         assert_eq!(store.edge_count("s1").unwrap(), 0);
 
         store
-            .add_nodes("s1", &[
-                make_node("a", NodeKind::Entity, "A"),
-                make_node("b", NodeKind::Entity, "B"),
-                make_node("c", NodeKind::Entity, "C"),
-            ])
+            .add_nodes(
+                "s1",
+                &[
+                    make_node("a", NodeKind::Entity, "A"),
+                    make_node("b", NodeKind::Entity, "B"),
+                    make_node("c", NodeKind::Entity, "C"),
+                ],
+            )
             .unwrap();
         assert_eq!(store.node_count("s1").unwrap(), 3);
 
         store
-            .add_edges("s1", &[
-                make_edge("a", "b", EdgeKind::DataFlow),
-                make_edge("b", "c", EdgeKind::Temporal),
-            ])
+            .add_edges(
+                "s1",
+                &[
+                    make_edge("a", "b", EdgeKind::DataFlow),
+                    make_edge("b", "c", EdgeKind::Temporal),
+                ],
+            )
             .unwrap();
         assert_eq!(store.edge_count("s1").unwrap(), 2);
     }

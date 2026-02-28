@@ -3,9 +3,8 @@
 use std::sync::Arc;
 
 use pcm_common::proto::pcm_v1::{
-    graph_service_server::GraphService, AppendEventRequest, AppendEventResponse,
-    ArchiveRequest, ArchiveResponse, GetSnapshotRequest, GraphSnapshot, ReachableRequest,
-    ReachableResponse,
+    AppendEventRequest, AppendEventResponse, ArchiveRequest, ArchiveResponse, GetSnapshotRequest,
+    GraphSnapshot, ReachableRequest, ReachableResponse, graph_service_server::GraphService,
 };
 use prost::Message;
 use tonic::{Request, Response, Status};
@@ -106,7 +105,9 @@ impl GraphService for GraphServiceImpl {
         );
 
         if req.from_node.is_empty() || req.to_node.is_empty() {
-            return Err(Status::invalid_argument("from_node and to_node must not be empty"));
+            return Err(Status::invalid_argument(
+                "from_node and to_node must not be empty",
+            ));
         }
 
         // Convert i32 edge_filter values to EdgeKind enum
@@ -146,7 +147,11 @@ impl GraphService for GraphServiceImpl {
         // MVP: serialize snapshot to a local file (simulating S3 archive)
         let archive_key = format!(
             "/tmp/pcm-archive/{}-{}.bin",
-            if session_id.is_empty() { "default" } else { session_id },
+            if session_id.is_empty() {
+                "default"
+            } else {
+                session_id
+            },
             hex::encode(&snapshot_hash)
         );
 

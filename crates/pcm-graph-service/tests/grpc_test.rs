@@ -3,9 +3,9 @@
 use std::sync::Arc;
 
 use pcm_common::proto::pcm_v1::{
-    graph_service_client::GraphServiceClient, graph_service_server::GraphServiceServer,
     AppendEventRequest, ArchiveRequest, EdgeKind, GetSnapshotRequest, GraphEdge, GraphNode,
-    NodeKind, ReachableRequest,
+    NodeKind, ReachableRequest, graph_service_client::GraphServiceClient,
+    graph_service_server::GraphServiceServer,
 };
 use pcm_graph_service::service::GraphServiceImpl;
 use pcm_graph_service::store::GraphStore;
@@ -18,11 +18,8 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 /// Create a fresh temporary GraphStore for each test.
 fn temp_store() -> Arc<GraphStore> {
     let id = COUNTER.fetch_add(1, Ordering::SeqCst);
-    let dir = std::env::temp_dir().join(format!(
-        "pcm-graph-grpc-test-{}-{}",
-        std::process::id(),
-        id
-    ));
+    let dir =
+        std::env::temp_dir().join(format!("pcm-graph-grpc-test-{}-{}", std::process::id(), id));
     Arc::new(GraphStore::open(dir.to_str().unwrap()).expect("open temp store"))
 }
 
