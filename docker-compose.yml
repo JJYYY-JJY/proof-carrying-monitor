@@ -1,37 +1,28 @@
+# Docker Compose — PCM 全链路部署
+# 用法: docker compose up --build -d
+
 services:
   # ============================================================
-  # 参考监控器网关
+  # 基础设施 — PostgreSQL
   # ============================================================
-  monitor-gateway:
-    build:
-      context: .
-      dockerfile: docker/monitor-gateway.Dockerfile
-    ports:
-      - "50051:50051"
+  postgres:
+    image: postgres:16-alpine
     environment:
-      - RUST_LOG=pcm=debug,info
-      - PCM_POLICY_PATH=/policies/example.pcm
+      POSTGRES_DB: pcm
+      POSTGRES_USER: pcm
+      POSTGRES_PASSWORD: pcm_dev_password
+    ports:
+      - "5432:5432"
     volumes:
-      - ./policies:/policies:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-      graph-service:
-        condition: service_healthy
-      policy-service:
-        condition: service_healthy
-    networks:
-      - pcm-internal
-    deploy:
-      resources:
-        limits:
-          memory: 512M
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./docker/init-db.sh:/docker-entrypoint-initdb.d/02-init-legacy.sh
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/localhost/50051' || exit 1"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U pcm"]
+      interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 30s
 
   # ============================================================
   # 策略服务
@@ -40,15 +31,16 @@ services:
     build:
       context: .
       dockerfile: docker/policy-service.Dockerfile
+    environment:
+      RUST_LOG: pcm=debug,info
+      DATABASE_URL: postgres://pcm:pcm_dev_password@postgres:5432/pcm
+      PCM_POLICY_PORT: "50052"
     ports:
       - "50052:50052"
-    environment:
-      - DATABASE_URL=postgres://pcm:pcm@postgres:5432/pcm_policies
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - pcm-internal
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/localhost/50052' || exit 1"]
       interval: 10s
@@ -63,12 +55,15 @@ services:
     build:
       context: .
       dockerfile: docker/graph-service.Dockerfile
+    environment:
+      RUST_LOG: pcm=debug,info
+      PCM_GRAPH_PORT: "50053"
+      PCM_GRAPH_DATA_DIR: /data/graph
     ports:
       - "50053:50053"
     volumes:
-      - graph-data:/data/sled
-    networks:
-      - pcm-internal
+      - graphdata:/data/graph
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/localhost/50053' || exit 1"]
       interval: 10s
@@ -83,15 +78,16 @@ services:
     build:
       context: .
       dockerfile: docker/audit-service.Dockerfile
+    environment:
+      RUST_LOG: pcm=debug,info
+      DATABASE_URL: postgres://pcm:pcm_dev_password@postgres:5432/pcm
+      PCM_AUDIT_PORT: "50054"
     ports:
       - "50054:50054"
-    environment:
-      - DATABASE_URL=postgres://pcm:pcm@postgres:5432/pcm_audit
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - pcm-internal
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/localhost/50054' || exit 1"]
       interval: 10s
@@ -100,31 +96,38 @@ services:
       start_period: 30s
 
   # ============================================================
-  # 基础设施
+  # 参考监控器网关
   # ============================================================
-  postgres:
-    image: postgres:16-alpine
+  monitor-gateway:
+    build:
+      context: .
+      dockerfile: docker/monitor-gateway.Dockerfile
     environment:
-      POSTGRES_USER: pcm
-      POSTGRES_PASSWORD: pcm
-      POSTGRES_DB: pcm_policies
+      RUST_LOG: pcm=debug,info
+      PCM_GATEWAY_PORT: "50051"
+      PCM_GRAPH_ENDPOINT: http://graph-service:50053
+      PCM_POLICY_FILE: /policies/default.pcm
+      PCM_AUDIT_ENDPOINT: http://audit-service:50054
     ports:
-      - "5432:5432"
+      - "50051:50051"
     volumes:
-      - pg-data:/var/lib/postgresql/data
-      - ./docker/init-db.sh:/docker-entrypoint-initdb.d/01-init-db.sh
-    networks:
-      - pcm-internal
+      - ./policies:/policies:ro
+    depends_on:
+      - graph-service
+      - policy-service
+      - audit-service
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pcm"]
-      interval: 5s
-      timeout: 3s
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/localhost/50051' || exit 1"]
+      interval: 10s
+      timeout: 5s
       retries: 5
-
-networks:
-  pcm-internal:
-    driver: bridge
+      start_period: 30s
 
 volumes:
-  pg-data:
-  graph-data:
+  pgdata:
+  graphdata:

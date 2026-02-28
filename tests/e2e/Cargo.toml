@@ -1,0 +1,19 @@
+[package]
+name = "pcm-e2e-tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "PCM 端到端集成测试"
+publish = false
+
+[dependencies]
+pcm-common = { path = "../../crates/pcm-common" }
+tokio = { workspace = true }
+tonic = { workspace = true }
+prost = { workspace = true }
+prost-types = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }

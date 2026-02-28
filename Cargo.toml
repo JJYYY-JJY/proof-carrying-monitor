@@ -11,6 +11,7 @@ members = [
     "crates/pcm-audit-service",
     "crates/pcm-cert-checker-ffi",
     "crates/pcm-cli",
+    "tests/e2e",
 ]
 
 [workspace.package]
