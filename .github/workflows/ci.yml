@@ -73,6 +73,12 @@ jobs:
         run: cargo clippy --workspace -- -D warnings
       - name: Tests
         run: cargo test --workspace
+      - name: Performance benchmark
+        run: cargo bench --workspace -- --test
+      - name: Performance regression benchmark
+        run: cargo bench -p pcm-monitor-gateway --bench evaluate_bench
+      - name: Benchmark report
+        run: bash scripts/bench-report.sh
 
   # ====================================================
   # 安全扫描

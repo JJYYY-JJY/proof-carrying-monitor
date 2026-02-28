@@ -1,40 +1,55 @@
-# justfile — proof-carrying-monitor
-# 运行 `just` 或 `just --list` 查看所有 recipe
+# justfile for proof-carrying-monitor
 
-# 默认 recipe
 default: build
 
-# 构建整个 workspace
 build:
     cargo build --workspace
 
-# 运行所有测试
 test:
     cargo test --workspace
 
-# 格式化代码
+bench:
+    cargo bench --workspace -- --output-format=bencher 2>&1 | tee bench-results.txt
+
+bench-check:
+    cargo bench --workspace -- --test
+
+bench-report:
+    bash scripts/bench-report.sh
+
 fmt:
     cargo fmt --all
 
-# Clippy 检查（warning 即失败）
 lint:
     cargo clippy --workspace -- -D warnings
 
-# 构建 Lean 规范
 lean-build:
     cd lean && lake build PCM
 
-# 构建 Lean 证明
 lean-proofs:
     cd lean && lake build PCMProofs
 
-# 启动 Docker 服务
 docker-up:
-    docker compose up -d
+    docker compose up --build -d
 
-# 停止 Docker 服务
 docker-down:
     docker compose down
 
-# 运行完整的 build + test + lint
+docker-clean:
+    docker compose down -v
+
+smoke-test:
+    bash scripts/smoke-test.sh
+
+demo: docker-up
+    @echo "Waiting for services to start..."
+    sleep 15
+    just smoke-test
+
+e2e-test:
+    docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from test-runner
+
+e2e-clean:
+    docker compose -f docker-compose.test.yml down -v
+
 all: build test lint

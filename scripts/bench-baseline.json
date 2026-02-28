@@ -1,0 +1,11 @@
+{
+  "evaluate_simple_allow": 500.0,
+  "evaluate_simple_deny": 500.0,
+  "evaluate_medium_allow": 2000.0,
+  "evaluate_medium_deny": 2000.0,
+  "evaluate_graph_allow": 5000.0,
+  "evaluate_graph_deny": 5000.0,
+  "evaluate_large_policy": 10000.0,
+  "certificate_generation": 1000.0,
+  "certificate_verification": 1000.0
+}
