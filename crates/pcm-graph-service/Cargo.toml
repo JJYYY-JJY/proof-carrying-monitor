@@ -9,7 +9,13 @@ pcm-common = { path = "../pcm-common" }
 tokio = { workspace = true }
 tonic = { workspace = true }
 prost = { workspace = true }
+prost-types = { workspace = true }
 sled = { workspace = true }
 blake3 = { workspace = true }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
+hex = "0.4"
+
+[dev-dependencies]
+tokio-stream = { version = "0.1", features = ["net"] }

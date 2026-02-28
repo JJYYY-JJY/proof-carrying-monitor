@@ -4,12 +4,26 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+integration = []
+
 [dependencies]
 pcm-common = { path = "../pcm-common" }
 pcm-policy-dsl = { path = "../pcm-policy-dsl" }
 tokio = { workspace = true }
 tonic = { workspace = true }
 prost = { workspace = true }
+prost-types = { workspace = true }
 sqlx = { workspace = true }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tokio-stream = { version = "0.1", features = ["net"] }
