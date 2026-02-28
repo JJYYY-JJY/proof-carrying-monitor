@@ -201,9 +201,8 @@ impl<'a> Cursor<'a> {
     fn read_string(&mut self) -> Result<String, PcmError> {
         let len = self.read_u32()? as usize;
         let bytes = self.read_bytes(len)?;
-        String::from_utf8(bytes.to_vec()).map_err(|e| {
-            PcmError::CertVerification(format!("invalid UTF-8 string: {}", e))
-        })
+        String::from_utf8(bytes.to_vec())
+            .map_err(|e| PcmError::CertVerification(format!("invalid UTF-8 string: {}", e)))
     }
 }
 

@@ -165,8 +165,7 @@ pub fn generate_certificate(
                 )));
             }
 
-            let premise_indices: Vec<u32> =
-                t.premises.iter().map(|&idx| idx as u32).collect();
+            let premise_indices: Vec<u32> = t.premises.iter().map(|&idx| idx as u32).collect();
 
             let conclusion = serialize_atom(&t.conclusion);
 
@@ -220,8 +219,7 @@ impl CertificateData {
             .map(|s| pcm_common::proto::pcm_v1::DerivationStep {
                 rule_index: s.rule_index,
                 premise_indices: s.premise_indices.clone(),
-                conclusion: serde_json::to_string(&s.conclusion)
-                    .unwrap_or_default(),
+                conclusion: serde_json::to_string(&s.conclusion).unwrap_or_default(),
             })
             .collect();
 
@@ -234,9 +232,7 @@ impl CertificateData {
     }
 
     /// 从 proto 消息还原
-    pub fn from_proto(
-        proto: &pcm_common::proto::pcm_v1::Certificate,
-    ) -> Result<Self, PcmError> {
+    pub fn from_proto(proto: &pcm_common::proto::pcm_v1::Certificate) -> Result<Self, PcmError> {
         let steps = proto
             .steps
             .iter()
@@ -355,8 +351,7 @@ fn generate_witness_for_reason(
             let rule_idx = trace_step.rule_index;
 
             // 递归收集基础事实
-            let base_fact_indices =
-                collect_base_facts(trace_step, &eval.trace, num_base_facts);
+            let base_fact_indices = collect_base_facts(trace_step, &eval.trace, num_base_facts);
             let matched: Vec<SerializedAtom> = base_fact_indices
                 .iter()
                 .filter_map(|&idx| eval.facts.get(idx).map(serialize_atom))
@@ -503,16 +498,12 @@ fn format_deny_reason(
                     let pred = atom_predicate(atom);
                     for fact in matched_facts {
                         if fact.predicate == pred {
-                            positive_matches
-                                .push(format!("  - {}", format_serialized_atom(fact)));
+                            positive_matches.push(format!("  - {}", format_serialized_atom(fact)));
                         }
                     }
                 }
                 Literal::Neg(atom) => {
-                    negative_conditions.push(format!(
-                        "  - {} [不存在]",
-                        format_atom_pattern(atom)
-                    ));
+                    negative_conditions.push(format!("  - {} [不存在]", format_atom_pattern(atom)));
                 }
             }
         }
@@ -569,30 +560,23 @@ fn format_atom_pattern(atom: &Atom) -> String {
                 format_term(target),
             ],
         ),
-        Atom::DataLabel { data, label } => (
-            "data_label",
-            vec![format_term(data), format_term(label)],
-        ),
-        Atom::HasRole { principal, role } => (
-            "has_role",
-            vec![format_term(principal), format_term(role)],
-        ),
+        Atom::DataLabel { data, label } => {
+            ("data_label", vec![format_term(data), format_term(label)])
+        }
+        Atom::HasRole { principal, role } => {
+            ("has_role", vec![format_term(principal), format_term(role)])
+        }
         Atom::GraphEdge { src, dst, kind } => (
             "graph_edge",
             vec![format_term(src), format_term(dst), format_term(kind)],
         ),
-        Atom::GraphLabel { node, label } => (
-            "graph_label",
-            vec![format_term(node), format_term(label)],
-        ),
-        Atom::Precedes { before, after } => (
-            "precedes",
-            vec![format_term(before), format_term(after)],
-        ),
-        Atom::Deny { request, reason } => (
-            "deny",
-            vec![format_term(request), format_term(reason)],
-        ),
+        Atom::GraphLabel { node, label } => {
+            ("graph_label", vec![format_term(node), format_term(label)])
+        }
+        Atom::Precedes { before, after } => {
+            ("precedes", vec![format_term(before), format_term(after)])
+        }
+        Atom::Deny { request, reason } => ("deny", vec![format_term(request), format_term(reason)]),
     };
     format!("{}({})", pred, args.join(", "))
 }
@@ -664,18 +648,13 @@ impl WitnessData {
     }
 
     /// 从 proto 消息还原
-    pub fn from_proto(
-        proto: &pcm_common::proto::pcm_v1::Witness,
-    ) -> Result<Self, PcmError> {
+    pub fn from_proto(proto: &pcm_common::proto::pcm_v1::Witness) -> Result<Self, PcmError> {
         let matched_facts = proto
             .matched_facts
             .iter()
             .map(|s| {
                 serde_json::from_str(s).map_err(|e| {
-                    PcmError::CertVerification(format!(
-                        "failed to deserialize matched fact: {}",
-                        e
-                    ))
+                    PcmError::CertVerification(format!("failed to deserialize matched fact: {}", e))
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -865,8 +844,7 @@ mod tests {
             vec![("req1".to_string(), "forbidden".to_string())],
         );
         let rules = dummy_rules(0);
-        let result =
-            generate_certificate(&eval, &rules, zero_hash(), zero_hash(), zero_hash());
+        let result = generate_certificate(&eval, &rules, zero_hash(), zero_hash(), zero_hash());
         assert!(result.is_err());
         let err_msg = format!("{}", result.unwrap_err());
         assert!(err_msg.contains("deny"));
@@ -1153,7 +1131,14 @@ mod tests {
             path.description
         );
         assert_eq!(path.edges.len(), 1);
-        assert_eq!(path.edges[0], ("node_A".to_string(), "node_B".to_string(), "data_flow".to_string()));
+        assert_eq!(
+            path.edges[0],
+            (
+                "node_A".to_string(),
+                "node_B".to_string(),
+                "data_flow".to_string()
+            )
+        );
     }
 
     // ── test_generate_witness_temporal ──
@@ -1244,8 +1229,7 @@ mod tests {
         );
         let rules = vec![make_deny_rule_with_negation(), make_deny_rule_temporal()];
 
-        let witnesses =
-            generate_all_witnesses(&eval, &rules, zero_hash(), zero_hash()).unwrap();
+        let witnesses = generate_all_witnesses(&eval, &rules, zero_hash(), zero_hash()).unwrap();
 
         assert_eq!(
             witnesses.len(),
