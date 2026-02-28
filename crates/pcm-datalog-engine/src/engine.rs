@@ -455,10 +455,7 @@ impl DatalogEngine {
     ///
     /// 对第一个正文字逐一遍历事实尝试统一，得到候选；
     /// 对后续正文字在每个候选上继续统一（笛卡尔积 + 剪枝）。
-    fn find_substitutions(
-        pos_lits: &[&Atom],
-        facts: &[Atom],
-    ) -> Vec<(Substitution, Vec<usize>)> {
+    fn find_substitutions(pos_lits: &[&Atom], facts: &[Atom]) -> Vec<(Substitution, Vec<usize>)> {
         if pos_lits.is_empty() {
             // 无正文字 → 空替换（规则无条件触发或只有负文字）
             return vec![(HashMap::new(), vec![])];
@@ -563,7 +560,9 @@ mod tests {
         // 纯 ground 规则：deny("r1","blocked") :- action("r1","HttpOut","alice","api.com").
         let rule = Rule {
             head: deny_atom(c("r1"), c("blocked")),
-            body: vec![Literal::Pos(action_fact("r1", "HttpOut", "alice", "api.com"))],
+            body: vec![Literal::Pos(action_fact(
+                "r1", "HttpOut", "alice", "api.com",
+            ))],
         };
         let facts = vec![action_fact("r1", "HttpOut", "alice", "api.com")];
         let engine = DatalogEngine::new(vec![rule], 100);
@@ -580,7 +579,9 @@ mod tests {
         // 同一 ground 规则，但事实不匹配（不同 principal）
         let rule = Rule {
             head: deny_atom(c("r1"), c("blocked")),
-            body: vec![Literal::Pos(action_fact("r1", "HttpOut", "alice", "api.com"))],
+            body: vec![Literal::Pos(action_fact(
+                "r1", "HttpOut", "alice", "api.com",
+            ))],
         };
         let facts = vec![action_fact("r1", "HttpOut", "bob", "api.com")];
         let engine = DatalogEngine::new(vec![rule], 100);
@@ -723,9 +724,9 @@ mod tests {
         ];
 
         let facts = vec![
-            action_fact("r1", "HttpOut", "alice", "api.com"),  // R0 匹配
+            action_fact("r1", "HttpOut", "alice", "api.com"), // R0 匹配
             action_fact("r2", "DbWrite", "bob", "users"),     // R1 匹配（bob 没有 db_writer）
-            action_fact("r3", "FileWrite", "carol", "/tmp"),   // R2：carol 有 file_writer → 不触发
+            action_fact("r3", "FileWrite", "carol", "/tmp"),  // R2：carol 有 file_writer → 不触发
             has_role_fact("carol", "file_writer"),
             // 没有 ToolCall action → R3 不触发
         ];
@@ -775,7 +776,10 @@ mod tests {
         let engine = DatalogEngine::new(vec![rule], 100);
         let result = engine.evaluate(facts).unwrap();
         assert!(result.has_deny);
-        assert_eq!(result.deny_reasons[0], ("node_a".into(), "info_leak".into()));
+        assert_eq!(
+            result.deny_reasons[0],
+            ("node_a".into(), "info_leak".into())
+        );
     }
 
     // ── 7. test_graph_constraint_no_violation ──
@@ -839,10 +843,7 @@ mod tests {
         let engine = DatalogEngine::new(vec![rule], 100);
         let result = engine.evaluate(facts).unwrap();
         assert!(result.has_deny);
-        assert_eq!(
-            result.deny_reasons[0],
-            ("r1".into(), "missing_auth".into())
-        );
+        assert_eq!(result.deny_reasons[0], ("r1".into(), "missing_auth".into()));
     }
 
     // ── 9. test_temporal_satisfied ──
