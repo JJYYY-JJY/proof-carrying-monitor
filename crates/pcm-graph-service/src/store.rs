@@ -1,6 +1,6 @@
-//! Graph storage layer backed by sled embedded KV store.
+//! Graph storage layer backed by RocksDB.
 //!
-//! Stores graph nodes, edges, and snapshots in separate sled trees,
+//! Stores graph nodes, edges, and snapshots in separate column families,
 //! with session-based isolation via key prefixes.
 
 use std::collections::{HashMap, VecDeque};
@@ -9,25 +9,33 @@ use anyhow::{Context, Result, bail};
 use pcm_common::hash::blake3_hash;
 use pcm_common::proto::pcm_v1::{EdgeKind, GraphEdge, GraphNode, GraphPath, GraphSnapshot};
 use prost::Message;
+use rocksdb::{
+    ColumnFamily, ColumnFamilyDescriptor, DB, Direction, IteratorMode, Options, WriteBatch,
+};
 
-/// Embedded graph store backed by sled.
+const DEFAULT_CF: &str = "default";
+const NODES_CF: &str = "nodes";
+const EDGES_CF: &str = "edges";
+const SNAPSHOTS_CF: &str = "snapshots";
+const METADATA_CF: &str = "metadata";
+
+type KvBytes = (Box<[u8]>, Box<[u8]>);
+
+/// Embedded graph store backed by RocksDB.
 pub struct GraphStore {
-    #[allow(dead_code)]
-    db: sled::Db,
-    /// `node_id -> GraphNode` (protobuf-encoded)
-    nodes: sled::Tree,
-    /// `composite_key(src|dst|kind) -> GraphEdge` (protobuf-encoded)
-    edges: sled::Tree,
-    /// `session_id -> snapshot_hash`
-    snapshots: sled::Tree,
-    /// Counters and other metadata
-    #[allow(dead_code)]
-    metadata: sled::Tree,
+    db: DB,
 }
 
 // ---------------------------------------------------------------------------
 // Key helpers
 // ---------------------------------------------------------------------------
+
+fn cf_descriptors() -> Vec<ColumnFamilyDescriptor> {
+    [DEFAULT_CF, NODES_CF, EDGES_CF, SNAPSHOTS_CF, METADATA_CF]
+        .into_iter()
+        .map(|name| ColumnFamilyDescriptor::new(name, Options::default()))
+        .collect()
+}
 
 /// Build a session-scoped node key: `{session}:{node_id}`
 fn node_key(session: &str, node_id: &str) -> Vec<u8> {
@@ -44,7 +52,7 @@ fn session_prefix(session: &str) -> Vec<u8> {
     format!("{session}:").into_bytes()
 }
 
-/// Normalise an incoming session id — empty string becomes `"default"`.
+/// Normalise an incoming session id – empty string becomes `"default"`.
 fn normalise_session(session_id: &str) -> &str {
     if session_id.is_empty() {
         "default"
@@ -58,20 +66,40 @@ fn normalise_session(session_id: &str) -> &str {
 // ---------------------------------------------------------------------------
 
 impl GraphStore {
-    /// Open (or create) a sled database at `path`.
+    fn cf(&self, name: &'static str) -> Result<&ColumnFamily> {
+        self.db
+            .cf_handle(name)
+            .with_context(|| format!("missing RocksDB column family `{name}`"))
+    }
+
+    fn scan_cf(&self, cf_name: &'static str, prefix: &[u8]) -> Result<Vec<KvBytes>> {
+        let cf = self.cf(cf_name)?;
+        let mut items = Vec::new();
+
+        for item in self
+            .db
+            .iterator_cf(cf, IteratorMode::From(prefix, Direction::Forward))
+        {
+            let (key, value) = item?;
+            if !key.starts_with(prefix) {
+                break;
+            }
+            items.push((key, value));
+        }
+
+        Ok(items)
+    }
+
+    /// Open (or create) a RocksDB database at `path`.
     pub fn open(path: &str) -> Result<Self> {
-        let db = sled::open(path).context("failed to open sled database")?;
-        let nodes = db.open_tree("nodes").context("open nodes tree")?;
-        let edges = db.open_tree("edges").context("open edges tree")?;
-        let snapshots = db.open_tree("snapshots").context("open snapshots tree")?;
-        let metadata = db.open_tree("metadata").context("open metadata tree")?;
-        Ok(Self {
-            db,
-            nodes,
-            edges,
-            snapshots,
-            metadata,
-        })
+        let mut db_options = Options::default();
+        db_options.create_if_missing(true);
+        db_options.create_missing_column_families(true);
+
+        let db = DB::open_cf_descriptors(&db_options, path, cf_descriptors())
+            .context("failed to open RocksDB database")?;
+
+        Ok(Self { db })
     }
 
     // -- Node operations ---------------------------------------------------
@@ -80,6 +108,9 @@ impl GraphStore {
     /// `hex(blake3(label || kind))`.
     pub fn add_nodes(&self, session_id: &str, nodes: &[GraphNode]) -> Result<()> {
         let session = normalise_session(session_id);
+        let nodes_cf = self.cf(NODES_CF)?;
+        let mut batch = WriteBatch::default();
+
         for node in nodes {
             let id = if node.node_id.is_empty() {
                 let content = format!("{}:{}", node.label, node.kind);
@@ -94,15 +125,19 @@ impl GraphStore {
                 ..node.clone()
             };
             let encoded = stored.encode_to_vec();
-            self.nodes.insert(node_key(session, &id), encoded)?;
+            batch.put_cf(nodes_cf, node_key(session, &id), encoded);
         }
-        Ok(())
+
+        self.db.write(batch).context("failed to write node batch")
     }
 
     /// Retrieve a single node by id within the given session.
     pub fn get_node(&self, session_id: &str, node_id: &str) -> Result<Option<GraphNode>> {
         let session = normalise_session(session_id);
-        match self.nodes.get(node_key(session, node_id))? {
+        let key = node_key(session, node_id);
+        let nodes_cf = self.cf(NODES_CF)?;
+
+        match self.db.get_cf(nodes_cf, key)? {
             Some(bytes) => {
                 let node =
                     GraphNode::decode(bytes.as_ref()).context("failed to decode GraphNode")?;
@@ -118,16 +153,28 @@ impl GraphStore {
     /// given session, returning an error on the first missing endpoint.
     pub fn add_edges(&self, session_id: &str, edges: &[GraphEdge]) -> Result<()> {
         let session = normalise_session(session_id);
+        let nodes_cf = self.cf(NODES_CF)?;
+        let edges_cf = self.cf(EDGES_CF)?;
+        let mut batch = WriteBatch::default();
+
         for edge in edges {
             // Validate endpoints
-            if self.nodes.get(node_key(session, &edge.src))?.is_none() {
+            if self
+                .db
+                .get_cf(nodes_cf, node_key(session, &edge.src))?
+                .is_none()
+            {
                 bail!(
                     "source node '{}' does not exist in session '{}'",
                     edge.src,
                     session
                 );
             }
-            if self.nodes.get(node_key(session, &edge.dst))?.is_none() {
+            if self
+                .db
+                .get_cf(nodes_cf, node_key(session, &edge.dst))?
+                .is_none()
+            {
                 bail!(
                     "destination node '{}' does not exist in session '{}'",
                     edge.dst,
@@ -137,9 +184,10 @@ impl GraphStore {
 
             let key = edge_key(session, &edge.src, &edge.dst, edge.kind);
             let encoded = edge.encode_to_vec();
-            self.edges.insert(key, encoded)?;
+            batch.put_cf(edges_cf, key, encoded);
         }
-        Ok(())
+
+        self.db.write(batch).context("failed to write edge batch")
     }
 
     // -- Counts ------------------------------------------------------------
@@ -147,13 +195,13 @@ impl GraphStore {
     /// Number of nodes in the given session.
     pub fn node_count(&self, session_id: &str) -> Result<u64> {
         let prefix = session_prefix(normalise_session(session_id));
-        Ok(self.nodes.scan_prefix(&prefix).count() as u64)
+        Ok(self.scan_cf(NODES_CF, &prefix)?.len() as u64)
     }
 
     /// Number of edges in the given session.
     pub fn edge_count(&self, session_id: &str) -> Result<u64> {
         let prefix = session_prefix(normalise_session(session_id));
-        Ok(self.edges.scan_prefix(&prefix).count() as u64)
+        Ok(self.scan_cf(EDGES_CF, &prefix)?.len() as u64)
     }
 
     // -- Snapshot ----------------------------------------------------------
@@ -166,19 +214,19 @@ impl GraphStore {
         let prefix = session_prefix(session);
 
         // Collect all nodes, sorted by node_id
-        let mut nodes: Vec<GraphNode> = Vec::new();
-        for item in self.nodes.scan_prefix(&prefix) {
-            let (_k, v) = item?;
-            nodes.push(GraphNode::decode(v.as_ref())?);
-        }
+        let mut nodes: Vec<GraphNode> = self
+            .scan_cf(NODES_CF, &prefix)?
+            .into_iter()
+            .map(|(_k, v)| GraphNode::decode(v.as_ref()).context("failed to decode GraphNode"))
+            .collect::<Result<Vec<_>>>()?;
         nodes.sort_by(|a, b| a.node_id.cmp(&b.node_id));
 
         // Collect all edges, sorted by (src, dst, kind)
-        let mut edges: Vec<GraphEdge> = Vec::new();
-        for item in self.edges.scan_prefix(&prefix) {
-            let (_k, v) = item?;
-            edges.push(GraphEdge::decode(v.as_ref())?);
-        }
+        let mut edges: Vec<GraphEdge> = self
+            .scan_cf(EDGES_CF, &prefix)?
+            .into_iter()
+            .map(|(_k, v)| GraphEdge::decode(v.as_ref()).context("failed to decode GraphEdge"))
+            .collect::<Result<Vec<_>>>()?;
         edges.sort_by(|a, b| (&a.src, &a.dst, a.kind).cmp(&(&b.src, &b.dst, b.kind)));
 
         // Merkle roots
@@ -215,8 +263,13 @@ impl GraphStore {
         let snapshot_hash = blake3_hash(&hash_input).to_vec();
 
         // Persist snapshot hash
-        self.snapshots
-            .insert(session.as_bytes(), snapshot_hash.as_slice())?;
+        self.db
+            .put_cf(
+                self.cf(SNAPSHOTS_CF)?,
+                session.as_bytes(),
+                snapshot_hash.as_slice(),
+            )
+            .context("failed to persist snapshot hash")?;
 
         Ok(GraphSnapshot {
             snapshot_hash,
@@ -242,9 +295,8 @@ impl GraphStore {
 
         // Build adjacency list
         let mut adj: HashMap<String, Vec<(String, EdgeKind)>> = HashMap::new();
-        for item in self.edges.scan_prefix(&prefix) {
-            let (_k, v) = item?;
-            let edge = GraphEdge::decode(v.as_ref())?;
+        for (_k, v) in self.scan_cf(EDGES_CF, &prefix)? {
+            let edge = GraphEdge::decode(v.as_ref()).context("failed to decode GraphEdge")?;
             let kind = EdgeKind::try_from(edge.kind).unwrap_or(EdgeKind::Unspecified);
             if !edge_filter.is_empty() && !edge_filter.contains(&kind) {
                 continue;
@@ -286,31 +338,22 @@ impl GraphStore {
     pub fn clear_session(&self, session_id: &str) -> Result<()> {
         let session = normalise_session(session_id);
         let prefix = session_prefix(session);
+        let mut batch = WriteBatch::default();
 
         // Remove nodes
-        let node_keys: Vec<_> = self
-            .nodes
-            .scan_prefix(&prefix)
-            .keys()
-            .collect::<Result<Vec<_>, _>>()?;
-        for key in node_keys {
-            self.nodes.remove(key)?;
+        for (key, _value) in self.scan_cf(NODES_CF, &prefix)? {
+            batch.delete_cf(self.cf(NODES_CF)?, key);
         }
 
         // Remove edges
-        let edge_keys: Vec<_> = self
-            .edges
-            .scan_prefix(&prefix)
-            .keys()
-            .collect::<Result<Vec<_>, _>>()?;
-        for key in edge_keys {
-            self.edges.remove(key)?;
+        for (key, _value) in self.scan_cf(EDGES_CF, &prefix)? {
+            batch.delete_cf(self.cf(EDGES_CF)?, key);
         }
 
         // Remove snapshot
-        self.snapshots.remove(session.as_bytes())?;
+        batch.delete_cf(self.cf(SNAPSHOTS_CF)?, session.as_bytes());
 
-        Ok(())
+        self.db.write(batch).context("failed to clear session data")
     }
 }
 
@@ -358,7 +401,7 @@ mod tests {
 
     static COUNTER: AtomicU64 = AtomicU64::new(0);
 
-    /// Create a fresh temporary sled database for each test.
+    /// Create a fresh temporary RocksDB database for each test.
     fn temp_store() -> GraphStore {
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
         let dir =

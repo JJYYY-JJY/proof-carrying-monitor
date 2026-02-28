@@ -21,6 +21,8 @@ cd proof-carrying-monitor
 docker compose up --build -d
 ```
 
+> Note: `graph-service` now uses RocksDB. If you have an older local setup from the previous `sled` backend, remove the existing `graphdata` volume (for Docker) or delete your local `PCM_GRAPH_DATA_DIR` directory before the first restart.
+
 此命令将启动 5 个容器：
 
 | 服务 | 端口 | 说明 |
