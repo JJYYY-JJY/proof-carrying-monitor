@@ -8,9 +8,18 @@ description = "PCM 命令行工具"
 [dependencies]
 pcm-common = { path = "../pcm-common" }
 pcm-policy-dsl = { path = "../pcm-policy-dsl" }
+pcm-cert = { path = "../pcm-cert" }
 pcm-cert-checker-ffi = { path = "../pcm-cert-checker-ffi" }
 clap = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+tonic = { workspace = true }
+prost-types = { workspace = true }
+tokio = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
