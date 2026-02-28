@@ -73,9 +73,28 @@ jobs:
         run: cargo clippy --workspace -- -D warnings
       - name: Tests
         run: cargo test --workspace
-      - name: Performance benchmark
-        run: cargo bench --workspace -- --test
-      - name: Performance regression benchmark
+
+  # ====================================================
+  # Performance benchmark
+  # ====================================================
+  performance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      PCM_BENCH_SAMPLE_SIZE: "20"
+      PCM_BENCH_WARMUP_MS: "50"
+      PCM_BENCH_MEASURE_MS: "10"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libclang-dev librocksdb-dev protobuf-compiler
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run performance benchmark
         run: cargo bench -p pcm-monitor-gateway --bench evaluate_bench
       - name: Benchmark report
         run: bash scripts/bench-report.sh
@@ -157,6 +176,35 @@ jobs:
   # ====================================================
   integration:
     needs: [rust-check, lean-proofs, lean-ffi-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libclang-dev librocksdb-dev protobuf-compiler
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Start Postgres
+        run: docker compose -f docker-compose.yml up -d postgres
+      - name: Wait for Postgres to be ready
+        run: |
+          for i in $(seq 1 15); do
+            docker compose exec -T postgres pg_isready -U pcm && break
+            echo "Waiting for postgres... ($i/15)"
+            sleep 2
+          done
+      - name: Run integration tests
+        run: cargo test --workspace --exclude pcm-cert-checker-ffi -- --ignored
+        env:
+          DATABASE_URL: postgres://pcm:pcm@localhost:5432/pcm_policies
+
+  integration-pr:
+    if: github.event_name == 'pull_request'
+    needs: [rust-check, lean-proofs, lean-ffi-tests, performance]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
