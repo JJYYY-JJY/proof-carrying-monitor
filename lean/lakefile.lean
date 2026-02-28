@@ -14,3 +14,8 @@ lean_lib PCM where
 lean_lib PCMProofs where
   srcDir := "src"
   roots := #[`PCM.Proofs]
+
+lean_exe pcm_checker where
+  srcDir := "src"
+  root := `PCM.Cert.Main
+  supportInterpreter := true

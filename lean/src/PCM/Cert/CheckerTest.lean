@@ -112,6 +112,23 @@ def badWit4 : Witness := {
 
 example : checkWitness badWit4 req3 pol3 Graph.empty [] = false := rfl
 
+def wrongRidRule4b : Rule := {
+  head := .deny "other_req" "unauthorized_http",
+  body := denyRule3.body
+}
+def pol4b : Policy := { rules := [wrongRidRule4b] }
+def wrongRidWit4b : Witness := {
+  denyRuleIdx := 0,
+  matchedFacts := [.action "r3" .httpOut "alice" "api.example.com"],
+  violationPaths := [],
+  policyHash := emptyHash,
+  requestHash := emptyHash
+}
+
+#eval checkWitness wrongRidWit4b req3 pol4b Graph.empty []
+
+example : checkWitness wrongRidWit4b req3 pol4b Graph.empty [] = false := rfl
+
 -- ============================================================
 -- 场景 5: 无效证书 → 验证失败 (checkCert = false)
 -- ============================================================

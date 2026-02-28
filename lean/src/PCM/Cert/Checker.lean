@@ -83,12 +83,14 @@ def checkWitness (w : Witness) (req : Request) (pol : Policy)
   | none => false
   | some (rule : Rule) =>
     match rule.head with
-    | .deny _ _ =>
+    | .deny rid _ =>
       let base := baseFacts req g roles
+      -- deny rule must target the current request
+      (rid == req.id) &&
       -- 所有 matchedFacts 是基础事实的子集
-      w.matchedFacts.all (fun a => base.contains a) &&
-      -- 规则体所有文字在 matchedFacts ∪ base 中被满足
-      rule.body.all (fun lit => checkLitSatisfied lit (base ++ w.matchedFacts))
+      (w.matchedFacts.all (fun a => base.contains a) &&
+        -- 规则体所有文字在 matchedFacts ∪ base 中被满足
+        rule.body.all (fun lit => checkLitSatisfied lit (base ++ w.matchedFacts)))
     | _ => false
 
 /-- Diff 证书检查器 -/
