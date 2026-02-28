@@ -13,7 +13,8 @@ tokio = { workspace = true }
 tonic = { workspace = true }
 prost = { workspace = true }
 prost-types = { workspace = true }
-sqlx = { workspace = true }
+sqlx-core = { workspace = true }
+sqlx-postgres = { workspace = true }
 ed25519-dalek = { workspace = true }
 blake3 = { workspace = true }
 tracing = { workspace = true }

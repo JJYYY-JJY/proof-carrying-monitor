@@ -10,7 +10,7 @@ tokio = { workspace = true }
 tonic = { workspace = true }
 prost = { workspace = true }
 prost-types = { workspace = true }
-sled = { workspace = true }
+rocksdb = { workspace = true }
 blake3 = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }

@@ -14,7 +14,8 @@ tokio = { workspace = true }
 tonic = { workspace = true }
 prost = { workspace = true }
 prost-types = { workspace = true }
-sqlx = { workspace = true }
+sqlx-core = { workspace = true }
+sqlx-postgres = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
