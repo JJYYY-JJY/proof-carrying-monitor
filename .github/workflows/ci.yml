@@ -81,6 +81,48 @@ jobs:
         run: bash scripts/bench-report.sh
 
   # ====================================================
+  # Lean FFI 对拍测试
+  # ====================================================
+  lean-ffi-tests:
+    needs: [lean-proofs]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libclang-dev librocksdb-dev protobuf-compiler
+      - name: Install elan (Lean version manager)
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+            | sh -s -- -y --no-modify-path
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Install Lean toolchain
+        run: |
+          cd lean
+          elan toolchain install "$(cat lean-toolchain)"
+          elan override set "$(cat lean-toolchain)"
+      - name: Cache Lake packages
+        uses: actions/cache@v4
+        with:
+          path: lean/.lake
+          key: lake-${{ runner.os }}-${{ hashFiles('lean/lean-toolchain', 'lean/lake-manifest.json') }}
+          restore-keys: lake-${{ runner.os }}-
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build pcm_checker
+        run: |
+          cd lean
+          lake build pcm_checker
+      - name: Run Lean FFI integration tests
+        run: cargo test -p pcm-cert-checker-ffi --test lean_integration -- --ignored
+        env:
+          PCM_CHECKER_BIN: ${{ github.workspace }}/lean/.lake/build/bin/pcm_checker
+
+  # ====================================================
   # 安全扫描
   # ====================================================
   security:
@@ -114,7 +156,7 @@ jobs:
   # 集成测试
   # ====================================================
   integration:
-    needs: [rust-check, lean-proofs]
+    needs: [rust-check, lean-proofs, lean-ffi-tests]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -137,7 +179,7 @@ jobs:
             sleep 2
           done
       - name: Run integration tests
-        run: cargo test --workspace -- --ignored
+        run: cargo test --workspace --exclude pcm-cert-checker-ffi -- --ignored
         env:
           DATABASE_URL: postgres://pcm:pcm@localhost:5432/pcm_policies
 
