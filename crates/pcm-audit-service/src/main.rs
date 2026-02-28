@@ -7,7 +7,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use ed25519_dalek::SigningKey;
 use pcm_common::proto::pcm_v1::audit_service_server::AuditServiceServer;
-use sqlx::postgres::PgPoolOptions;
+use sqlx_postgres::PgPoolOptions;
 use tonic::transport::Server;
 
 use pcm_audit_service::service::AuditServiceImpl;
@@ -87,7 +87,7 @@ fn load_or_generate_signing_key() -> SigningKey {
 
 /// Minimal hex decoder (avoids pulling in the `hex` crate).
 fn hex_decode(s: &str) -> Option<Vec<u8>> {
-    if s.len() % 2 != 0 {
+    if !s.len().is_multiple_of(2) {
         return None;
     }
     (0..s.len())

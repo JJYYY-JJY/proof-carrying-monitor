@@ -43,15 +43,8 @@ impl PolicyService for PolicyServiceImpl {
             .await
             .map_err(|e| {
                 // Check if it's a compilation error
-                if let Some(store_err) = e.downcast_ref::<StoreError>() {
-                    match store_err {
-                        StoreError::CompilationFailed(msg) => {
-                            return Status::invalid_argument(format!(
-                                "policy compilation failed: {msg}"
-                            ));
-                        }
-                        _ => {}
-                    }
+                if let Some(StoreError::CompilationFailed(msg)) = e.downcast_ref::<StoreError>() {
+                    return Status::invalid_argument(format!("policy compilation failed: {msg}"));
                 }
                 Status::internal(format!("failed to create policy: {e}"))
             })?;

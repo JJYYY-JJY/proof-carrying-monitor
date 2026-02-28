@@ -17,7 +17,8 @@ use pcm_common::proto::pcm_v1::{
     Verdict, VerifyChainRequest, audit_service_client::AuditServiceClient,
     audit_service_server::AuditServiceServer,
 };
-use sqlx::postgres::PgPoolOptions;
+use sqlx_core::query::query;
+use sqlx_postgres::PgPoolOptions;
 use tonic::transport::Server;
 
 // =========================================================================
@@ -36,7 +37,7 @@ async fn start_test_server() -> (String, Arc<AuditStore>) {
         .expect("failed to connect to database");
 
     // Clean up previous test data
-    sqlx::query("DELETE FROM audit_records")
+    query("DELETE FROM audit_records")
         .execute(&pool)
         .await
         .expect("failed to clean test data");
@@ -176,7 +177,7 @@ async fn test_signature_chain_tamper_detected() {
 
     // Tamper with the middle record's hash in the database
     let fake_hash = vec![0u8; 32];
-    sqlx::query("UPDATE audit_records SET record_hash = $1 WHERE record_id = $2")
+    query("UPDATE audit_records SET record_hash = $1 WHERE record_id = $2")
         .bind(&fake_hash)
         .bind(&record_ids[1])
         .execute(store.pool())

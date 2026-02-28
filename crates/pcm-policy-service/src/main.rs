@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use pcm_common::proto::pcm_v1::policy_service_server::PolicyServiceServer;
-use sqlx::postgres::PgPoolOptions;
+use sqlx_postgres::PgPoolOptions;
 use tonic::transport::Server;
 
 use pcm_policy_service::service::PolicyServiceImpl;

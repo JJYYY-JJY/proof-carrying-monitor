@@ -6,8 +6,10 @@
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Utc};
 use pcm_common::hash::blake3_hash;
-use sqlx::postgres::PgRow;
-use sqlx::{PgPool, Row};
+use sqlx_core::query::query;
+use sqlx_core::query_as::query_as;
+use sqlx_core::row::Row;
+use sqlx_postgres::{PgPool, PgRow};
 
 // ============================================================
 // Data types
@@ -37,7 +39,7 @@ pub enum StoreError {
     #[error("compilation failed: {0}")]
     CompilationFailed(String),
     #[error("database error: {0}")]
-    Database(#[from] sqlx::Error),
+    Database(#[from] sqlx_core::Error),
 }
 
 // ============================================================
@@ -121,7 +123,7 @@ impl PolicyStore {
         let next_version = self.next_version(&policy_id).await?;
 
         // 7. Insert the version row
-        let row = sqlx::query(
+        let row = query(
             r#"
             INSERT INTO policy_versions
                 (policy_id, version, content_hash, source_dsl, compiled_json, author, commit_sha)
@@ -159,7 +161,7 @@ impl PolicyStore {
     ) -> Result<Option<PolicyVersionRecord>> {
         let row = match version {
             Some(v) => {
-                sqlx::query(
+                query(
                     r#"
                     SELECT policy_id, version, content_hash, source_dsl,
                            compiled_json, author, commit_sha, is_active, created_at
@@ -173,7 +175,7 @@ impl PolicyStore {
                 .await?
             }
             None => {
-                sqlx::query(
+                query(
                     r#"
                     SELECT policy_id, version, content_hash, source_dsl,
                            compiled_json, author, commit_sha, is_active, created_at
@@ -194,7 +196,7 @@ impl PolicyStore {
 
     /// Get the currently active version for a policy.
     pub async fn get_active_policy(&self, policy_id: &str) -> Result<Option<PolicyVersionRecord>> {
-        let row = sqlx::query(
+        let row = query(
             r#"
             SELECT policy_id, version, content_hash, source_dsl,
                    compiled_json, author, commit_sha, is_active, created_at
@@ -230,7 +232,7 @@ impl PolicyStore {
                 .parse()
                 .context("invalid page_token (expected RFC 3339 timestamp)")?;
 
-            sqlx::query(
+            query(
                 r#"
                 SELECT policy_id, version, content_hash, source_dsl,
                        compiled_json, author, commit_sha, is_active, created_at
@@ -246,7 +248,7 @@ impl PolicyStore {
             .fetch_all(&self.pool)
             .await?
         } else {
-            sqlx::query(
+            query(
                 r#"
                 SELECT policy_id, version, content_hash, source_dsl,
                        compiled_json, author, commit_sha, is_active, created_at
@@ -314,18 +316,16 @@ impl PolicyStore {
         // 3. Deactivate all other versions and activate the target
         let mut tx = self.pool.begin().await?;
 
-        sqlx::query("UPDATE policy_versions SET is_active = FALSE WHERE policy_id = $1")
+        query("UPDATE policy_versions SET is_active = FALSE WHERE policy_id = $1")
             .bind(policy_id)
             .execute(&mut *tx)
             .await?;
 
-        sqlx::query(
-            "UPDATE policy_versions SET is_active = TRUE WHERE policy_id = $1 AND version = $2",
-        )
-        .bind(policy_id)
-        .bind(version)
-        .execute(&mut *tx)
-        .await?;
+        query("UPDATE policy_versions SET is_active = TRUE WHERE policy_id = $1 AND version = $2")
+            .bind(policy_id)
+            .bind(version)
+            .execute(&mut *tx)
+            .await?;
 
         tx.commit().await?;
         Ok(true)
@@ -337,7 +337,7 @@ impl PolicyStore {
 
     /// Ensure the `policies` parent row exists.
     async fn ensure_policy_row(&self, policy_id: &str) -> Result<()> {
-        sqlx::query("INSERT INTO policies (policy_id) VALUES ($1) ON CONFLICT DO NOTHING")
+        query("INSERT INTO policies (policy_id) VALUES ($1) ON CONFLICT DO NOTHING")
             .bind(policy_id)
             .execute(&self.pool)
             .await
@@ -350,7 +350,7 @@ impl PolicyStore {
     /// If no versions exist yet the first version is `"0.1.0"`.
     /// Otherwise the minor component is incremented: `"0.3.0"` → `"0.4.0"`.
     async fn next_version(&self, policy_id: &str) -> Result<String> {
-        let row: Option<(String,)> = sqlx::query_as(
+        let row: Option<(String,)> = query_as(
             r#"
             SELECT version
             FROM policy_versions
@@ -371,7 +371,7 @@ impl PolicyStore {
 
     /// Find an existing version record by content hash (across all policies).
     async fn find_by_content_hash(&self, hash: &[u8]) -> Result<Option<PolicyVersionRecord>> {
-        let row = sqlx::query(
+        let row = query(
             r#"
             SELECT policy_id, version, content_hash, source_dsl,
                    compiled_json, author, commit_sha, is_active, created_at

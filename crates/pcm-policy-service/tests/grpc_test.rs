@@ -15,7 +15,7 @@ use pcm_common::proto::pcm_v1::{
 };
 use pcm_policy_service::service::PolicyServiceImpl;
 use pcm_policy_service::store::PolicyStore;
-use sqlx::postgres::PgPoolOptions;
+use sqlx_postgres::PgPoolOptions;
 use tonic::transport::Server;
 
 // =========================================================================

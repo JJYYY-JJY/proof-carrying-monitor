@@ -9,8 +9,11 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use prost::Message;
-use sqlx::postgres::PgRow;
-use sqlx::{PgPool, QueryBuilder, Row};
+use sqlx_core::query::query;
+use sqlx_core::query_builder::QueryBuilder;
+use sqlx_core::query_scalar::query_scalar;
+use sqlx_core::row::Row;
+use sqlx_postgres::{PgPool, PgRow, Postgres};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -87,12 +90,11 @@ pub struct AuditStore {
 impl AuditStore {
     /// Create a new `AuditStore`, recovering the chain head from the database.
     pub async fn new(pool: PgPool, signing_key: SigningKey) -> Result<Self> {
-        let last_hash: Option<Vec<u8>> = sqlx::query_scalar(
-            "SELECT record_hash FROM audit_records ORDER BY logged_at DESC LIMIT 1",
-        )
-        .fetch_optional(&pool)
-        .await
-        .context("failed to recover last audit hash")?;
+        let last_hash: Option<Vec<u8>> =
+            query_scalar("SELECT record_hash FROM audit_records ORDER BY logged_at DESC LIMIT 1")
+                .fetch_optional(&pool)
+                .await
+                .context("failed to recover last audit hash")?;
 
         tracing::info!(
             chain_head = last_hash.as_ref().map(|h| hex::encode(h)),
@@ -183,7 +185,7 @@ impl AuditStore {
         };
 
         // Persist
-        sqlx::query(
+        query(
             r#"INSERT INTO audit_records (
                 record_id, request_id, principal, action_type, target,
                 verdict, policy_hash, graph_hash, certificate,
@@ -238,7 +240,7 @@ impl AuditStore {
     ) -> Result<(Vec<AuditRecord>, Option<String>)> {
         let limit = if limit == 0 { 50 } else { limit.min(1000) };
 
-        let mut qb: QueryBuilder<'_, sqlx::Postgres> = QueryBuilder::new(
+        let mut qb: QueryBuilder<'_, Postgres> = QueryBuilder::new(
             "SELECT record_id, request_data, decision_data, prev_hash, \
              record_hash, signature, logged_at \
              FROM audit_records WHERE 1=1",
@@ -267,11 +269,11 @@ impl AuditStore {
 
         // Cursor-based pagination: page_token is the RFC3339 logged_at of the
         // last record from the previous page.
-        if let Some(token) = page_token {
-            if let Ok(cursor) = token.parse::<DateTime<Utc>>() {
-                qb.push(" AND logged_at < ");
-                qb.push_bind(cursor);
-            }
+        if let Some(token) = page_token
+            && let Ok(cursor) = token.parse::<DateTime<Utc>>()
+        {
+            qb.push(" AND logged_at < ");
+            qb.push_bind(cursor);
         }
 
         qb.push(" ORDER BY logged_at DESC LIMIT ");
@@ -321,7 +323,7 @@ impl AuditStore {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<Vec<AuditRecord>> {
-        let rows = sqlx::query(
+        let rows = query(
             "SELECT record_id, request_data, decision_data, prev_hash, \
              record_hash, signature, logged_at \
              FROM audit_records \
@@ -351,7 +353,7 @@ impl AuditStore {
     ) -> Result<(bool, u64, Option<String>)> {
         // Fetch all records between start and end (inclusive), ordered by
         // logged_at so the chain can be walked in order.
-        let rows = sqlx::query(
+        let rows = query(
             "SELECT record_id, request_id, verdict, policy_hash, \
                     decided_at, record_hash, prev_hash, signature \
              FROM audit_records \
@@ -451,7 +453,7 @@ mod hex {
     /// Decode a hex string into bytes.  Returns `Err` on invalid input.
     #[allow(dead_code)]
     pub fn decode(s: &str) -> Result<Vec<u8>, String> {
-        if s.len() % 2 != 0 {
+        if !s.len().is_multiple_of(2) {
             return Err("odd-length hex string".into());
         }
         (0..s.len())
