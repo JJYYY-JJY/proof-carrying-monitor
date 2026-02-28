@@ -174,7 +174,8 @@ jobs:
   # ====================================================
   # 集成测试
   # ====================================================
-  integration:
+  integration-push:
+    if: github.event_name == 'push'
     needs: [rust-check, lean-proofs, lean-ffi-tests]
     runs-on: ubuntu-latest
     timeout-minutes: 30
