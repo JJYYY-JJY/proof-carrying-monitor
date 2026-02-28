@@ -509,10 +509,10 @@ fn generate_warnings(indexed_rules: &[IndexedRule]) -> Vec<CompileWarning> {
                 Literal::Neg(a) => a,
             };
             for t in atom_terms(atom) {
-                if let Term::Var(v) = t {
-                    if v != "_" {
-                        *body_vars.entry(v.clone()).or_insert(0) += 1;
-                    }
+                if let Term::Var(v) = t
+                    && v != "_"
+                {
+                    *body_vars.entry(v.clone()).or_insert(0) += 1;
                 }
             }
         }
