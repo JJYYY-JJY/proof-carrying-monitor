@@ -520,10 +520,7 @@ fn generate_warnings(indexed_rules: &[IndexedRule]) -> Vec<CompileWarning> {
         for (var, count) in &body_vars {
             if *count == 1 && !head_vars.contains(var) {
                 warnings.push(CompileWarning {
-                    message: format!(
-                        "unused singleton variable '{}' in rule {}",
-                        var, ir.index
-                    ),
+                    message: format!("unused singleton variable '{}' in rule {}", var, ir.index),
                     rule_index: Some(ir.index),
                 });
             }
@@ -671,8 +668,7 @@ mod tests {
 
     #[test]
     fn test_compile_multi_rule() {
-        let source =
-            std::fs::read_to_string(policy_path("test_multi_rule.pcm")).unwrap();
+        let source = std::fs::read_to_string(policy_path("test_multi_rule.pcm")).unwrap();
         let ast = parse_policy(&source).unwrap();
         let result = compile(&ast, "1.0.0").unwrap();
         assert_eq!(result.policy.rules.len(), 4);
@@ -743,11 +739,7 @@ mod tests {
                 let result = compile(&ast, "1.0.0")
                     .unwrap_or_else(|e| panic!("compile error in {}: {e}", path.display()));
                 let decompiled = decompile(&result.policy);
-                assert_eq!(
-                    ast, decompiled,
-                    "roundtrip failed for {}",
-                    path.display()
-                );
+                assert_eq!(ast, decompiled, "roundtrip failed for {}", path.display());
                 count += 1;
             }
         }
@@ -890,10 +882,8 @@ mod tests {
 
     #[test]
     fn test_content_hash_different() {
-        let ast1 =
-            parse_policy(r#"deny(Req, "a") :- action(Req, HttpOut, P, _)."#).unwrap();
-        let ast2 =
-            parse_policy(r#"deny(Req, "b") :- action(Req, DbWrite, P, _)."#).unwrap();
+        let ast1 = parse_policy(r#"deny(Req, "a") :- action(Req, HttpOut, P, _)."#).unwrap();
+        let ast2 = parse_policy(r#"deny(Req, "b") :- action(Req, DbWrite, P, _)."#).unwrap();
         let r1 = compile(&ast1, "1.0.0").unwrap();
         let r2 = compile(&ast2, "1.0.0").unwrap();
         assert_ne!(r1.policy.content_hash, r2.policy.content_hash);
@@ -1001,8 +991,7 @@ mod tests {
         let result = compile(&ast, "1.0.0").unwrap();
 
         let schema = &result.policy.fact_schema;
-        let pred_names: Vec<&str> =
-            schema.predicates.iter().map(|p| p.name.as_str()).collect();
+        let pred_names: Vec<&str> = schema.predicates.iter().map(|p| p.name.as_str()).collect();
         assert!(pred_names.contains(&"deny"));
         assert!(pred_names.contains(&"action"));
         assert!(pred_names.contains(&"has_role"));

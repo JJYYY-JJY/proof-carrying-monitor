@@ -12,7 +12,7 @@ pub mod parser;
 
 pub use ast::*;
 pub use compiler::{
-    compile, decompile, CompileResult, CompileWarning, CompiledPolicy, FactSchema, IndexedRule,
-    PredicateInfo, Stratum,
+    CompileResult, CompileWarning, CompiledPolicy, FactSchema, IndexedRule, PredicateInfo, Stratum,
+    compile, decompile,
 };
 pub use parser::parse_policy;

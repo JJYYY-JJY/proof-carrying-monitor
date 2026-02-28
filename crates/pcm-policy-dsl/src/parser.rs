@@ -30,13 +30,13 @@ pub enum ParseError {
 }
 
 use nom::{
+    IResult,
     branch::alt,
     bytes::complete::{is_not, tag, take_while},
     character::complete::{char, multispace1, satisfy},
     combinator::{all_consuming, cut, map, opt, recognize, value},
     multi::{many0, separated_list1},
     sequence::{delimited, pair, preceded, tuple},
-    IResult,
 };
 
 // ============================================================
@@ -386,8 +386,7 @@ mod tests {
 
     #[test]
     fn test_term_constant_identifier() {
-        let input =
-            r#"deny(Req, "t") :- action(Req, HttpOut, P, _), graph_edge(A, B, data_flow)."#;
+        let input = r#"deny(Req, "t") :- action(Req, HttpOut, P, _), graph_edge(A, B, data_flow)."#;
         let ast = parse_policy(input).unwrap();
         if let Literal::Pos(Atom::GraphEdge { kind, .. }) = &ast.rules[0].body[1] {
             assert_eq!(*kind, Term::Const("data_flow".to_string()));
@@ -426,8 +425,7 @@ mod tests {
 
     #[test]
     fn test_negation() {
-        let input =
-            r#"deny(Req, "t") :- action(Req, HttpOut, P, _), !has_role(P, "admin")."#;
+        let input = r#"deny(Req, "t") :- action(Req, HttpOut, P, _), !has_role(P, "admin")."#;
         let ast = parse_policy(input).unwrap();
         assert_eq!(ast.rules[0].body.len(), 2);
         assert!(matches!(&ast.rules[0].body[0], Literal::Pos(_)));
